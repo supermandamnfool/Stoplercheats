@@ -52,6 +52,19 @@ jobs:
               raise SystemExit("Unexpected density.ts contents; refusing unsafe edit")
           p.write_text(s.replace(old, new, 1))
           PY
+      - name: Fix MIDI input Buffer conversion typing
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("extracted/src/core/midi-file-reader.ts")
+          s = p.read_text()
+          old = "convertMidiFileToPatterns(fileBuffer, midiNoteMap)"
+          new = "convertMidiFileToPatterns(Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer), midiNoteMap)"
+          if s.count(old) != 1:
+              raise SystemExit("Unexpected midi-file-reader.ts call site; refusing unsafe edit")
+          p.write_text(s.replace(old, new, 1))
+          PY
       - name: Build macOS application
         run: npm run dist -- --mac --arm64
         working-directory: ${{ env.APP_DIR }}
