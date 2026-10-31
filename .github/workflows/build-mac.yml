@@ -68,7 +68,7 @@ jobs:
       - name: Set required desktop app version
         shell: bash
         run: |
-          node -e 'const fs=require("fs");const p="extracted/package.json";const j=JSON.parse(fs.readFileSync(p,"utf8"));j.version=j.version||"0.1.0";fs.writeFileSync(p,JSON.stringify(j,null,2)+"\\n")'
+          node -e 'const fs=require("fs");const p="extracted/package.json";const j=JSON.parse(fs.readFileSync(p,"utf8"));j.version=j.version||"0.1.0";fs.writeFileSync(p,JSON.stringify(j,null,2)))'
       - name: Build macOS application
         run: npm run dist -- --mac --arm64
         working-directory: ${{ env.APP_DIR }}
