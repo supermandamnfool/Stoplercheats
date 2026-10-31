@@ -39,6 +39,19 @@ jobs:
           s = s[:index] + s[index + len(decl):]
           p.write_text(s)
           PY
+      - name: Fix source density counter TypeScript error
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("extracted/src/core/density.ts")
+          s = p.read_text()
+          old = "arr.reduce((a, b) => a + b, 0)"
+          new = "arr.reduce<number>((a, b) => a + Number(b), 0)"
+          if old not in s:
+              raise SystemExit("Unexpected density.ts contents; refusing unsafe edit")
+          p.write_text(s.replace(old, new, 1))
+          PY
       - name: Build macOS application
         run: npm run dist -- --mac --arm64
         working-directory: ${{ env.APP_DIR }}
