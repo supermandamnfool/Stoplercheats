@@ -25,6 +25,20 @@ jobs:
       - name: Install dependencies
         run: npm install
         working-directory: ${{ env.APP_DIR }}
+      - name: Remove duplicate density state declaration in archived source
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("extracted/src/components/MidiUploader/index.tsx")
+          s = p.read_text()
+          decl = "const [densitySweepEnabled, setDensitySweepEnabled] = useState(false);"
+          if s.count(decl) != 2:
+              raise SystemExit(f"Expected 2 duplicate declarations, found {s.count(decl)}; refusing unsafe patch")
+          index = s.rfind(decl)
+          s = s[:index] + s[index + len(decl):]
+          p.write_text(s)
+          PY
       - name: Build macOS application
         run: npm run dist -- --mac --arm64
         working-directory: ${{ env.APP_DIR }}
