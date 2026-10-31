@@ -1,0 +1,40 @@
+name: Build Stolperbeats MIDI Converter for Mac
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  mac-app:
+    runs-on: macos-15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract existing app source
+        shell: bash
+        run: |
+          unzip -q stolperbeats-pattern-creator-github-ready.zip -d extracted
+          echo "ZIP contents:"
+          find extracted -maxdepth 3 -type f | head -60
+          PACKAGE=$(find extracted -name package.json -not -path '*/node_modules/*' | head -1)
+          if [ -z "$PACKAGE" ]; then echo "No package.json in archive"; exit 1; fi
+          echo "APP_DIR=$(dirname "$PACKAGE")" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: npm install
+        working-directory: ${{ env.APP_DIR }}
+      - name: Build macOS application
+        run: npm run dist -- --mac --arm64
+        working-directory: ${{ env.APP_DIR }}
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Upload macOS installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: Stolperbeats-Mac-Apple-Silicon
+          path: |
+            ${{ env.APP_DIR }}/dist/*.dmg
+            ${{ env.APP_DIR }}/dist/*.zip
+          if-no-files-found: error
