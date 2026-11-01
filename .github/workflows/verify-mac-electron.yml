@@ -185,6 +185,23 @@ jobs:
           }
           console.log('Static asset paths resolve relative to packaged HTML');
           JS
+          echo '=== MIDI FIXTURE TO STOLPERBEATS BANK FORMAT ==='
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('src/core/__tests__/midi-file-reader.test.ts')
+          s=p.read_text()
+          old='./src/__tests__/test.mid'
+          if s.count(old)!=1: raise SystemExit('Fixture reference changed unexpectedly')
+          s=s.replace(old,'./src/core/__tests__/test.mid')
+          s=s.replace('.catch(console.error)', '.catch((error) => { console.error(error); process.exitCode = 1; })')
+          p.write_text(s)
+          PY
+          npx --yes --package tsx tsx src/core/__tests__/midi-file-reader.test.ts > /tmp/stopler-midi-bank.txt
+          test -s /tmp/stopler-midi-bank.txt
+          grep -q 'KICK > PTN0:' /tmp/stopler-midi-bank.txt
+          grep -q 'SNARE > PTN0:' /tmp/stopler-midi-bank.txt
+          grep -q 'HIHAT1 > PTN0:' /tmp/stopler-midi-bank.txt
+          echo 'Fixture converted to bank text with KICK, SNARE and HIHAT1'
           echo '=== PACKAGE ARM64 APPLICATION DIRECTORY (NO DMG OR ZIP) ==='
           CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --mac dir --arm64 --publish never
           APP=$(find dist -maxdepth 3 -type d -name '*.app' -print -quit)
@@ -208,7 +225,11 @@ jobs:
           mkdir -p /tmp/stopler-test-home
           HOME=/tmp/stopler-test-home "$BIN" --no-sandbox > /tmp/stopler-runtime.log 2>&1 &
           PID=$!
-          sleep 15
+          sleep 8
+          echo '=== CAPTURE MACOS DESKTOP FOR VISUAL REVIEW ==='
+          mkdir -p ../visual-review
+          screencapture -x ../visual-review/stopler-desktop.png || echo 'Desktop capture unavailable on this runner'
+          sleep 7
           if kill -0 "$PID" 2>/dev/null; then
             echo 'Electron process stayed alive for 15 seconds'
             kill "$PID" || true
@@ -232,3 +253,12 @@ jobs:
           rm -rf source/node_modules source/.next source/audit-production.json
           test -f source/package-lock.json
           test -f source/package.json
+
+      - name: Upload screenshot for manual interface review (no application binaries)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stopler-visual-review
+          path: visual-review/stopler-desktop.png
+          if-no-files-found: warn
+          retention-days: 7
