@@ -49,15 +49,18 @@ jobs:
           const p=JSON.parse(fs.readFileSync('package.json','utf8'));
           p.devDependencies=p.devDependencies||{};
           p.devDependencies.eslint='^9.39.0';
-          if(p.devDependencies['eslint-config-next']) p.devDependencies['eslint-config-next']='^16.4.3';
+          for(const group of ['dependencies','devDependencies']){
+            if(p[group]?.['eslint-config-next']) p[group]['eslint-config-next']='^16.4.3';
+          }
+          if(!p.dependencies?.['eslint-config-next'] && !p.devDependencies?.['eslint-config-next']) throw new Error('eslint-config-next not found');
           p.overrides={...(p.overrides||{}),'brace-expansion':'^1.1.21'};
           fs.writeFileSync('package.json',JSON.stringify(p,null,2));
           console.log('Testing ESLint 9 and brace-expansion override in isolation');
           JS
           npm install --ignore-scripts --no-audit --no-fund
-          npm audit fix --ignore-scripts --no-fund || true
+          npm audit fix --ignore-scripts --no-fund || echo 'Audit fix could not resolve all advisories; strict final audit will determine result'
           echo '=== REMAINING PRODUCTION AUDIT ==='
-          npm audit --omit=dev --audit-level=low || true
+          npm audit --omit=dev --audit-level=low || echo 'Production audit found outstanding vulnerabilities'
           echo '=== VULNERABLE BRACE-EXPANSION DEPENDENCY PATHS ==='
           npm ls brace-expansion --all || true
           echo '=== BRACE-EXPANSION INSTALLED VERSIONS ==='
@@ -106,3 +109,13 @@ jobs:
           }
           JS
           node -e 'const a=require("./audit-production.json"); console.log(JSON.stringify(a.metadata?.vulnerabilities || {}, null, 2))'
+          echo '=== STRICT FINAL SECURITY GATE ==='
+          node - <<'JS'
+          const a=require('./audit-production.json');
+          const v=a.metadata?.vulnerabilities||{};
+          if((v.high||0)+(v.critical||0)>0) {
+            console.error('FAILED: high/critical production vulnerabilities remain',v);
+            process.exit(1);
+          }
+          console.log('PASSED: no high or critical production vulnerabilities',v);
+          JS
