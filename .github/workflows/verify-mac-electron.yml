@@ -154,6 +154,8 @@ jobs:
           const configPath='next.config.js';
           let s=fs.readFileSync(configPath,'utf8');
           if(!s.includes('output:')) s=s.replace(/(const nextConfig\s*=\s*\{)/, "$1\n  output: 'export',");
+          if(!s.includes("assetPrefix:")) s=s.replace(/(const nextConfig\s*=\s*\{)/, "$1\n  assetPrefix: './',");
+          if(!s.includes("assetPrefix: './'")) throw new Error('Could not configure relative Next asset prefix');
           if(!s.includes("output: 'export'")) throw new Error('Could not configure Next static export');
           fs.writeFileSync(configPath,s);
           JS
