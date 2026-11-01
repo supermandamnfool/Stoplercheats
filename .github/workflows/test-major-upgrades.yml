@@ -46,4 +46,13 @@ jobs:
           s = s.replace(duplicate, '', 1)
           p.write_text(s)
           PY
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/core/density.ts')
+          s = p.read_text()
+          old = 'arr.reduce((a, b) => a + b, 0)'
+          if s.count(old) != 1:
+              raise SystemExit(f'Expected one density counter expression, found {s.count(old)}')
+          p.write_text(s.replace(old, 'arr.reduce<number>((a, b) => a + b, 0)'))
+          PY
           npm run build
