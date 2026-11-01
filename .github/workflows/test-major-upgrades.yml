@@ -55,4 +55,13 @@ jobs:
               raise SystemExit(f'Expected one density counter expression, found {s.count(old)}')
           p.write_text(s.replace(old, 'arr.reduce<number>((a, b) => a + b, 0)'))
           PY
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/core/midi-file-reader.ts')
+          s = p.read_text()
+          old = 'convertMidiFileToPatterns(fileBuffer, midiNoteMap)'
+          if s.count(old) != 1:
+              raise SystemExit(f'Expected one MIDI conversion call, found {s.count(old)}')
+          p.write_text(s.replace(old, 'convertMidiFileToPatterns(Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer), midiNoteMap)'))
+          PY
           npm run build
