@@ -1,0 +1,31 @@
+name: Test dependency remediation
+on:
+  workflow_dispatch:
+jobs:
+  remediate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Extract and inspect package versions
+        shell: bash
+        run: |
+          unzip -q stolperbeats-pattern-creator-github-ready.zip -d source
+          node -e 'const p=require("./source/package.json");console.log(JSON.stringify({scripts:p.scripts,dependencies:p.dependencies,devDependencies:p.devDependencies,build:p.build},null,2))'
+      - name: Test nonbreaking fixes without running install scripts
+        shell: bash
+        working-directory: source
+        run: |
+          set -e
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          npm audit fix --package-lock-only --ignore-scripts --no-fund || true
+          echo '=== REMAINING ADVISORIES ==='
+          npm audit --omit=dev --audit-level=low || true
+          echo '=== UPDATED VERSIONS ==='
+          npm ls next electron --all || true
+          echo '=== PACKAGE LOCK CHANGES ==='
+          git diff --no-index /dev/null package-lock.json | head -80 || true
