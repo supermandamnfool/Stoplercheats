@@ -228,9 +228,50 @@ jobs:
           BIN=$(find "$APP/Contents/MacOS" -maxdepth 1 -type f -print -quit)
           test -n "$BIN"
           mkdir -p /tmp/stopler-test-home
-          HOME=/tmp/stopler-test-home "$BIN" --no-sandbox > /tmp/stopler-runtime.log 2>&1 &
+          HOME=/tmp/stopler-test-home "$BIN" --no-sandbox --remote-debugging-port=9222 > /tmp/stopler-runtime.log 2>&1 &
           PID=$!
           sleep 8
+          echo '=== CHROMIUM UI END-TO-END TEST VIA ELECTRON DEBUGGING PORT ==='
+          node - <<'JS'
+          const fs=require('fs');
+          const p=JSON.parse(fs.readFileSync('package.json','utf8'));
+          console.log('Electron dependency:',p.devDependencies?.electron||p.dependencies?.electron);
+          JS
+          cat > /tmp/stopler-e2e.cjs <<'JS'
+          const { chromium } = require(process.cwd() + '/node_modules/playwright-core');
+          const fs=require('fs');
+          const assert=require('assert');
+          (async()=>{
+            const browser=await chromium.connectOverCDP('http://127.0.0.1:9222',{timeout:20000});
+            const context=browser.contexts()[0];
+            const page=context.pages().find(p=>p.url().startsWith('file:'))||context.pages()[0];
+            await page.waitForLoadState('domcontentloaded');
+            console.log('UI URL:',page.url());
+            console.log('UI title:',await page.title());
+            assert((await page.locator('input[type=file]').count())>0,'No MIDI upload inputs');
+            const fixture=process.cwd()+'/src/core/__tests__/test.mid';
+            await page.locator('input[type=file]').first().setInputFiles(fixture);
+            await page.getByRole('button',{name:'Generate',exact:true}).click();
+            await page.locator('textarea').waitFor({timeout:20000});
+            const text=await page.locator('textarea').inputValue();
+            for(const part of ['KICK > PTN0:','SNARE > PTN0:','HIHAT1 > PTN0:']){
+              assert(text.includes(part),'Missing track '+part);
+            }
+            console.log('GUI generated bank:',text.slice(0,220));
+            const downloaded=page.waitForEvent('download',{timeout:15000});
+            await page.getByRole('button',{name:'Save',exact:true}).click();
+            const d=await downloaded;
+            assert.equal(d.suggestedFilename(),'PatternBank000.txt');
+            const dest='/tmp/stopler-gui-export.txt';
+            await d.saveAs(dest);
+            const saved=fs.readFileSync(dest,'utf8');
+            assert.equal(saved,text,'Saved bank differs from generated bank');
+            console.log('END-TO-END PASS: MIDI selected in GUI, generated bank verified, and PatternBank000.txt downloaded');
+            await browser.close();
+          })().catch(e=>{console.error(e);process.exit(1)});
+          JS
+          npm install --no-save --ignore-scripts --no-audit --no-fund playwright-core@1.58.2
+          node -e "require('playwright-core');console.log('Playwright driver ready')"
           echo '=== CAPTURE MACOS DESKTOP FOR VISUAL REVIEW ==='
           mkdir -p ../visual-review
           screencapture -x ../visual-review/stopler-desktop.png || echo 'Desktop capture unavailable on this runner'
