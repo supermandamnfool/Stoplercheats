@@ -1,0 +1,35 @@
+name: Audit archived application source
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect archived application without executing it
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir source
+          unzip -q stolperbeats-pattern-creator-github-ready.zip -d source
+          echo '=== SOURCE FILES ==='
+          find source -type f -not -path '*/node_modules/*' | sort | head -150
+          echo '=== PACKAGE MANIFEST ==='
+          cat source/package.json
+          echo '=== ELECTRON AND BUILD CONFIG ==='
+          find source -type f \( -iname '*electron*' -o -name 'main.js' -o -name 'preload.js' -o -name 'next.config.js' \) -not -path '*/node_modules/*' -print -exec sed -n '1,180p' {} \;
+          echo '=== NETWORK / SHELL / PERSISTENCE INDICATORS (review required) ==='
+          grep -RniE 'child_process|execSync|spawn\(|eval\(|new Function|https?://|fetch\(|axios|WebSocket|autoUpdater|openExternal|shell\.open|osascript|curl |wget |postinstall|preinstall|launchctl|~/Library|process\.env|fs\.(write|rm|unlink)' source --include='*.js' --include='*.ts' --include='*.tsx' --include='*.json' | head -180 || true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Audit dependency advisories
+        working-directory: source
+        shell: bash
+        run: |
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund >/dev/null 2>&1
+          npm audit --omit=dev --audit-level=low || true
