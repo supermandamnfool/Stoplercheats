@@ -272,6 +272,8 @@ jobs:
           JS
           npm install --no-save --ignore-scripts --no-audit --no-fund playwright-core@1.58.2
           node -e "require('playwright-core');console.log('Playwright driver ready')"
+          echo '=== RUN REAL ELECTRON UI MIDI EXPORT TEST ==='
+          node /tmp/stopler-e2e.cjs
           echo '=== CAPTURE MACOS DESKTOP FOR VISUAL REVIEW ==='
           mkdir -p ../visual-review
           screencapture -x ../visual-review/stopler-desktop.png || echo 'Desktop capture unavailable on this runner'
