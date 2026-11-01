@@ -1,0 +1,181 @@
+name: Build converter-only source candidate
+on:
+  push:
+    paths:
+      - '.github/workflows/build-converter-only.yml'
+  workflow_dispatch:
+jobs:
+  upgrade-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Extract application source
+        run: unzip -q stolperbeats-pattern-creator-github-ready.zip -d source
+      - name: Try updated framework and Electron toolchain in isolation
+        working-directory: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'JS'
+          const fs=require('fs');
+          const p=JSON.parse(fs.readFileSync('package.json','utf8'));
+          for(const [name,version] of Object.entries({'next':'^16.4.3','electron':'^41.7.1','electron-builder':'^26.18.0'})){
+            if(p.dependencies?.[name]) p.dependencies[name]=version;
+            else if(p.devDependencies?.[name]) p.devDependencies[name]=version;
+            else throw new Error('Missing dependency: '+name);
+          }
+          fs.writeFileSync('package.json',JSON.stringify(p,null,2));
+          console.log('Testing versions:',Object.fromEntries(['next','electron','electron-builder'].map(n=>[n,p.dependencies?.[n]||p.devDependencies?.[n]])));
+          JS
+          node - <<'JS'
+          const fs=require('fs');
+          const p=JSON.parse(fs.readFileSync('package.json','utf8'));
+          for(const [name,version] of Object.entries({'react':'^19.2.0','react-dom':'^19.2.0','typescript':'^5.9.3','@types/react':'^19.2.0','@types/react-dom':'^19.2.0'})){
+            if(p.dependencies?.[name]) p.dependencies[name]=version;
+            else if(p.devDependencies?.[name]) p.devDependencies[name]=version;
+            else if(name.startsWith('@types/')) p.devDependencies[name]=version;
+            else throw new Error('Missing dependency: '+name);
+          }
+          fs.writeFileSync('package.json',JSON.stringify(p,null,2));
+          console.log('Testing React 19 and TypeScript 5 upgrades');
+          JS
+          node - <<'JS'
+          const fs=require('fs');
+          const p=JSON.parse(fs.readFileSync('package.json','utf8'));
+          p.devDependencies=p.devDependencies||{};
+          p.devDependencies.eslint='^9.39.0';
+          for(const group of ['dependencies','devDependencies']){
+            if(p[group]?.['eslint-config-next']) p[group]['eslint-config-next']='^16.4.3';
+          }
+          if(!p.dependencies?.['eslint-config-next'] && !p.devDependencies?.['eslint-config-next']) throw new Error('eslint-config-next not found');
+          p.overrides={...(p.overrides||{}),'brace-expansion':'^1.1.21'};
+          fs.writeFileSync('package.json',JSON.stringify(p,null,2));
+          console.log('Testing ESLint 9 and brace-expansion override in isolation');
+          JS
+          npm install --ignore-scripts --no-audit --no-fund
+          npm audit fix --ignore-scripts --no-fund || echo 'Audit fix could not resolve all advisories; strict final audit will determine result'
+          echo '=== REMAINING PRODUCTION AUDIT ==='
+          npm audit --omit=dev --audit-level=low || echo 'Production audit found outstanding vulnerabilities'
+          echo '=== VULNERABLE BRACE-EXPANSION DEPENDENCY PATHS ==='
+          npm ls brace-expansion --all || true
+          echo '=== BRACE-EXPANSION INSTALLED VERSIONS ==='
+          node - <<'JS'
+          const fs=require('fs'),lock=JSON.parse(fs.readFileSync('package-lock.json','utf8'));
+          for(const [path,p] of Object.entries(lock.packages||{})){
+            if(path.endsWith('/brace-expansion')) console.log(path,p.version);
+          }
+          JS
+          echo '=== FRAMEWORK BUILD TEST ==='
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/components/MidiUploader/index.tsx')
+          s = p.read_text()
+          duplicate = 'const [densitySweepEnabled, setDensitySweepEnabled] = useState(false);'
+          if s.count(duplicate) != 2:
+              raise SystemExit(f'Expected exactly 2 density declarations, found {s.count(duplicate)}')
+          s = s.replace(duplicate, '', 1)
+          p.write_text(s)
+          PY
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/core/density.ts')
+          s = p.read_text()
+          old = 'arr.reduce((a, b) => a + b, 0)'
+          if s.count(old) != 1:
+              raise SystemExit(f'Expected one density counter expression, found {s.count(old)}')
+          p.write_text(s.replace(old, 'arr.reduce<number>((a, b) => a + b, 0)'))
+          PY
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/core/midi-file-reader.ts')
+          s = p.read_text()
+          old = 'convertMidiFileToPatterns(fileBuffer, midiNoteMap)'
+          if s.count(old) != 1:
+              raise SystemExit(f'Expected one MIDI conversion call, found {s.count(old)}')
+          p.write_text(s.replace(old, 'convertMidiFileToPatterns(Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer), midiNoteMap)'))
+          PY
+          npm run build
+          echo '=== FINAL DEPENDENCY SUMMARY ==='
+          npm audit --omit=dev --json > audit-production.json || true
+          node - <<'JS'
+          const a=require('./audit-production.json');
+          for(const [name,v] of Object.entries(a.vulnerabilities||{})){
+            if(v.severity==='high'||v.severity==='critical') console.log('HIGH-SEVERITY:',name,JSON.stringify({severity:v.severity,via:v.via,fixAvailable:v.fixAvailable}).slice(0,3500));
+          }
+          JS
+          node -e 'const a=require("./audit-production.json"); console.log(JSON.stringify(a.metadata?.vulnerabilities || {}, null, 2))'
+          echo '=== STRICT FINAL SECURITY GATE ==='
+          node - <<'JS'
+          const a=require('./audit-production.json');
+          const v=a.metadata?.vulnerabilities||{};
+          if((v.high||0)+(v.critical||0)>0) {
+            console.error('FAILED: high/critical production vulnerabilities remain',v);
+            process.exit(1);
+          }
+          console.log('PASSED: no high or critical production vulnerabilities',v);
+          JS
+
+      - name: Remove generator interface and fix static Electron packaging
+        working-directory: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > src/pages/index.tsx <<'EOF'
+          import Head from 'next/head';
+          import MidiUploader from '@/components/MidiUploader';
+
+          export default function Home() {
+            return (
+              <>
+                <Head>
+                  <title>Stolperbeats MIDI Converter</title>
+                </Head>
+                <main>
+                  <MidiUploader />
+                </main>
+              </>
+            );
+          }
+          EOF
+          node - <<'JS'
+          const fs=require('fs');
+          const p=JSON.parse(fs.readFileSync('package.json','utf8'));
+          p.build.productName='Stolperbeats MIDI Converter';
+          p.build.appId='com.rob.stolperbeats.midiconverter';
+          p.scripts['build:renderer']='next build';
+          p.scripts.dist='npm run build:renderer && electron-builder';
+          p.scripts.pack='npm run build:renderer && electron-builder --dir';
+          fs.writeFileSync('package.json',JSON.stringify(p,null,2));
+          const configPath='next.config.js';
+          let s=fs.readFileSync(configPath,'utf8');
+          if(!s.includes('output:')) s=s.replace(/(const nextConfig\s*=\s*\{)/, "$1\n  output: 'export',");
+          if(!s.includes("output: 'export'")) throw new Error('Could not configure Next static export');
+          fs.writeFileSync(configPath,s);
+          JS
+          echo '=== VERIFY NO GENERATOR ROUTE ==='
+          if grep -Eq 'Grids|Mode.GRIDS|Mutable Instruments' src/pages/index.tsx; then exit 1; fi
+          echo '=== BUILD STATIC RENDERER ==='
+          npm run build:renderer
+          test -f out/index.html
+          echo '=== ELECTRON ENTRY AND STATIC FILE ==='
+          node -e "const p=require('./package.json');if(p.build.productName!=='Stolperbeats MIDI Converter')process.exit(1)"
+          test -f electron/main.js
+          echo 'Converter-only UI and static export verified'
+
+      - name: Remove generated files before export
+        run: |
+          rm -rf source/node_modules source/.next source/audit-production.json
+          test -f source/package-lock.json
+          test -f source/package.json
+      - name: Upload upgraded source for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: stopler-converter-only-source-candidate
+          path: source/
+          retention-days: 14
+          if-no-files-found: error
