@@ -36,4 +36,14 @@ jobs:
           echo '=== REMAINING PRODUCTION AUDIT ==='
           npm audit --omit=dev --audit-level=low || true
           echo '=== FRAMEWORK BUILD TEST ==='
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/components/MidiUploader/index.tsx')
+          s = p.read_text()
+          duplicate = 'const [densitySweepEnabled, setDensitySweepEnabled] = useState(false);'
+          if s.count(duplicate) != 2:
+              raise SystemExit(f'Expected exactly 2 density declarations, found {s.count(duplicate)}')
+          s = s.replace(duplicate, '', 1)
+          p.write_text(s)
+          PY
           npm run build
