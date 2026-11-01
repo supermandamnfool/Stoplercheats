@@ -1,0 +1,35 @@
+name: Inspect MIDI conversion and macOS packaging
+on:
+  push:
+    paths:
+      - '.github/workflows/inspect-converter.yml'
+  workflow_dispatch:
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract source without executing application
+        run: unzip -q stolperbeats-pattern-creator-github-ready.zip -d source
+      - name: Inspect converter entry points, tests, and Electron configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd source
+          echo '=== SOURCE FILES ==='
+          find . -maxdepth 4 -type f ! -name 'package-lock.json' | sort | head -130
+          echo '=== PACKAGE CONFIGURATION ==='
+          node - <<'JS'
+          const p=require('./package.json');
+          console.log(JSON.stringify({scripts:p.scripts,main:p.main,build:p.build,dependencies:p.dependencies,devDependencies:p.devDependencies},null,2));
+          JS
+          echo '=== CONVERSION FUNCTIONS AND PATTERN FORMAT ==='
+          grep -RnE 'convertMidiFileToPatterns|PatternBank|pattern.?bank|Stolperbeats|\.mid|\.midi|writeFile|saveDialog' src electron* main* 2>/dev/null | head -140 || true
+          echo '=== TEST FILES ==='
+          find . -type f \( -name '*test*' -o -name '*spec*' \) ! -path './node_modules/*' | head -80
+          echo '=== ELECTRON ENTRY FILES ==='
+          find . -maxdepth 3 -type f \( -name '*electron*' -o -name 'main.js' -o -name 'preload.js' -o -name 'electron-builder.yml' \) -print
+          echo '=== ARCHIVE EXECUTABLE OR NATIVE PAYLOADS ==='
+          find . -type f \( -name '*.node' -o -name '*.dylib' -o -name '*.sh' -o -name '*.app' -o -name '*.exe' \) -print
