@@ -53,12 +53,13 @@ jobs:
             if(p[group]?.['eslint-config-next']) p[group]['eslint-config-next']='^16.4.3';
           }
           if(!p.dependencies?.['eslint-config-next'] && !p.devDependencies?.['eslint-config-next']) throw new Error('eslint-config-next not found');
-          p.overrides={...(p.overrides||{}),'brace-expansion':'^1.1.21'};
+          if(p.overrides) delete p.overrides['brace-expansion'];
           fs.writeFileSync('package.json',JSON.stringify(p,null,2));
-          console.log('Testing ESLint 9 and brace-expansion override in isolation');
+          console.log('Testing ESLint 9 with dependency-compatible brace-expansion versions');
           JS
           npm install --ignore-scripts --no-audit --no-fund
           npm audit fix --ignore-scripts --no-fund || echo 'Audit fix could not resolve all advisories; strict final audit will determine result'
+          node -e "const m=require('minimatch'); console.log('minimatch installed:', require('minimatch/package.json').version, 'brace expansion API check:', typeof m.braceExpand); if(typeof m.braceExpand!=='function')process.exit(1)"
           echo '=== REMAINING PRODUCTION AUDIT ==='
           npm audit --omit=dev --audit-level=low || echo 'Production audit found outstanding vulnerabilities'
           echo '=== VULNERABLE BRACE-EXPANSION DEPENDENCY PATHS ==='
