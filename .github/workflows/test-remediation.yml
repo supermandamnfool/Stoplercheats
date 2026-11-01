@@ -1,5 +1,8 @@
 name: Test dependency remediation
 on:
+  push:
+    paths:
+      - '.github/workflows/test-remediation.yml'
   workflow_dispatch:
 jobs:
   remediate:
