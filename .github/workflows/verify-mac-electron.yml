@@ -196,6 +196,37 @@ jobs:
           codesign -dv --verbose=2 "$APP" 2>&1 || true
           echo 'Local-only ARM64 package created for inspection; not published'
 
+          echo '=== VERIFY PACKAGED ELECTRON AND RENDERER CONTENT ==='
+          test -f "$APP/Contents/Resources/app.asar"
+          npx --yes @electron/asar list "$APP/Contents/Resources/app.asar" > /tmp/stopler-asar-list.txt
+          grep -q '/electron/main.js' /tmp/stopler-asar-list.txt
+          grep -q '/out/index.html' /tmp/stopler-asar-list.txt
+          echo 'Packaged app contains Electron entry and exported renderer'
+          echo '=== LAUNCH ISOLATED APP FOR 15 SECONDS ==='
+          BIN=$(find "$APP/Contents/MacOS" -maxdepth 1 -type f -print -quit)
+          test -n "$BIN"
+          mkdir -p /tmp/stopler-test-home
+          HOME=/tmp/stopler-test-home "$BIN" --no-sandbox > /tmp/stopler-runtime.log 2>&1 &
+          PID=$!
+          sleep 15
+          if kill -0 "$PID" 2>/dev/null; then
+            echo 'Electron process stayed alive for 15 seconds'
+            kill "$PID" || true
+            wait "$PID" || true
+          else
+            wait "$PID" || CODE=$?
+            echo "Electron exited early with code ${CODE:-0}"
+            cat /tmp/stopler-runtime.log
+            exit 1
+          fi
+          echo '=== ELECTRON RUNTIME LOG ==='
+          tail -60 /tmp/stopler-runtime.log || true
+          if grep -Ei 'ERR_FILE_NOT_FOUND|ERR_MODULE_NOT_FOUND|Cannot find module|uncaught exception|Failed to load' /tmp/stopler-runtime.log; then
+            echo 'Runtime log contains a loading error'
+            exit 1
+          fi
+          echo 'Isolated Electron process smoke test passed (not a visual UI test)'
+
       - name: Remove generated files before export
         run: |
           rm -rf source/node_modules source/.next source/audit-production.json
