@@ -1,0 +1,34 @@
+name: Test MIDI conversion functionality
+on:
+  push:
+    paths:
+      - '.github/workflows/test-midi-conversion.yml'
+  workflow_dispatch:
+jobs:
+  midi-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Extract converter source
+        run: unzip -q stolperbeats-pattern-creator-github-ready.zip -d source
+      - name: Run actual MIDI conversion against included fixture
+        working-directory: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --ignore-scripts --no-audit --no-fund
+          echo '=== MIDI READER SOURCE ==='
+          sed -n '1,150p' src/core/midi-file-reader.ts
+          echo '=== MIDI TEST SOURCE ==='
+          sed -n '1,140p' src/core/__tests__/midi-file-reader.test.ts
+          echo '=== BANK FORMAT SOURCE ==='
+          sed -n '1,150p' src/core/bank.ts
+          echo '=== MIDI TEST FIXTURE ==='
+          file src/core/__tests__/test.mid
+          echo '=== EXECUTE MIDI CONVERSION TEST ==='
+          npx --yes --package tsx tsx src/core/__tests__/midi-file-reader.test.ts
