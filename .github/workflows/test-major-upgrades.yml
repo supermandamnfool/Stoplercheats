@@ -48,6 +48,15 @@ jobs:
           npm audit fix --ignore-scripts --no-fund || true
           echo '=== REMAINING PRODUCTION AUDIT ==='
           npm audit --omit=dev --audit-level=low || true
+          echo '=== VULNERABLE BRACE-EXPANSION DEPENDENCY PATHS ==='
+          npm ls brace-expansion --all || true
+          echo '=== BRACE-EXPANSION INSTALLED VERSIONS ==='
+          node - <<'JS'
+          const fs=require('fs'),lock=JSON.parse(fs.readFileSync('package-lock.json','utf8'));
+          for(const [path,p] of Object.entries(lock.packages||{})){
+            if(path.endsWith('/brace-expansion')) console.log(path,p.version);
+          }
+          JS
           echo '=== FRAMEWORK BUILD TEST ==='
           python3 - <<'PY'
           from pathlib import Path
