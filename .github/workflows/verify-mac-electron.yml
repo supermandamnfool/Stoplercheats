@@ -145,6 +145,7 @@ jobs:
           node - <<'JS'
           const fs=require('fs');
           const p=JSON.parse(fs.readFileSync('package.json','utf8'));
+          p.version=p.version || '0.1.0';
           p.build.productName='Stolperbeats MIDI Converter';
           p.build.appId='com.rob.stolperbeats.midiconverter';
           p.scripts['build:renderer']='next build';
@@ -184,7 +185,7 @@ jobs:
           console.log('Static asset paths resolve relative to packaged HTML');
           JS
           echo '=== PACKAGE ARM64 APPLICATION DIRECTORY (NO DMG OR ZIP) ==='
-          CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --mac dir --arm64
+          CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --mac dir --arm64 --publish never
           APP=$(find dist -maxdepth 3 -type d -name '*.app' -print -quit)
           test -n "$APP"
           test -f "$APP/Contents/Info.plist"
