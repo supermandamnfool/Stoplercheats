@@ -185,6 +185,11 @@ jobs:
           }
           console.log('Static asset paths resolve relative to packaged HTML');
           JS
+          echo '=== MIDI UPLOADER UI SOURCE FOR END-TO-END AUTOMATION ==='
+          find src/components/MidiUploader -type f -maxdepth 3 -print
+          sed -n '1,260p' src/components/MidiUploader/index.tsx
+          echo '=== ELECTRON MAIN PROCESS ==='
+          sed -n '1,160p' electron/main.js
           echo '=== MIDI FIXTURE TO STOLPERBEATS BANK FORMAT ==='
           python3 - <<'PY'
           from pathlib import Path
