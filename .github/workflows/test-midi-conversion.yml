@@ -31,4 +31,20 @@ jobs:
           echo '=== MIDI TEST FIXTURE ==='
           file src/core/__tests__/test.mid
           echo '=== EXECUTE MIDI CONVERSION TEST ==='
-          npx --yes --package tsx tsx src/core/__tests__/midi-file-reader.test.ts
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/core/__tests__/midi-file-reader.test.ts')
+          s = p.read_text()
+          old = "./src/__tests__/test.mid"
+          assert s.count(old) == 1, 'Unexpected fixture reference'
+          s = s.replace(old, "./src/core/__tests__/test.mid")
+          s = s.replace(".catch(console.error)", ".catch((error) => { console.error(error); process.exitCode = 1; })")
+          p.write_text(s)
+          PY
+          npx --yes --package tsx tsx src/core/__tests__/midi-file-reader.test.ts > conversion-output.txt
+          test -s conversion-output.txt
+          grep -q 'KICK > PTN0:' conversion-output.txt
+          grep -q 'SNARE > PTN0:' conversion-output.txt
+          grep -q 'HIHAT1 > PTN0:' conversion-output.txt
+          echo 'MIDI fixture converted into Stolperbeats bank text'
+          head -n 8 conversion-output.txt
