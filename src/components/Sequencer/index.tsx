@@ -244,23 +244,10 @@ export default function Sequencer() {
     } as Steps));
     setStatus('PATTERN CLEARED — UNDO AVAILABLE');
   };
-  const clearEverything = () => {
-    const confirmation = window.prompt(
-      'CLEAR EVERYTHING? This will erase all 24 patterns on all six tracks AND permanently delete every saved bank in the Library. This cannot be undone. Type DELETE ALL to confirm.'
-    );
-    if (confirmation !== 'DELETE ALL') return;
-    stop();
-    const blank = emptySteps();
-    setSteps(blank);
-    stepsRef.current = blank;
-    setLibrary([]);
-    setHistory([]);
-    setFuture([]);
-    setPatternClipboard(null);
-    setTrackClipboard(null);
-    setSlot(0);
-    setBankNumber(0);
-    setStatus('ALL PATTERNS AND SAVED LIBRARY BANKS CLEARED');
+  const clearAllPatterns = () => {
+    if (!window.confirm('Clear all 24 patterns across all six tracks? Saved Library banks will not be affected.')) return;
+    edit(() => emptySteps());
+    setStatus('ALL 24 PATTERNS CLEARED — UNDO AVAILABLE');
   };
   const exportBank = () => {
     try {
@@ -413,9 +400,10 @@ export default function Sequencer() {
       {generatorOpen&&<div className={styles.bankInline}>{bankPanel}<div className={styles.bankInlineSettings}>{generatorControls}</div></div>}
       <div className={styles.bottomBar}>
         <section><h2>AUDIO</h2><div className={styles.audioGrid}><span></span>{tracks.map(t=><strong key={t.id}>{t.label}</strong>)}<span>MUTE</span>{tracks.map(t=><label key={t.id}><input type="checkbox" checked={muted.includes(t.id)} onChange={()=>toggleTrack(t.id,muted,setMuted)}/></label>)}<span>SOLO</span>{tracks.map(t=><label key={t.id}><input type="checkbox" checked={solo.includes(t.id)} onChange={()=>toggleTrack(t.id,solo,setSolo)}/></label>)}</div></section>
-        <section><h2>BANK</h2><div className={styles.bottomButtons}><button onClick={generateBank}>GENERATE</button><button onClick={()=>setGeneratorOpen(v=>!v)} aria-expanded={generatorOpen}>{generatorOpen?'HIDE VARIATIONS':'VARIATIONS'}</button><button onClick={copyPattern} disabled={slot===0}>COPY PREVIOUS</button><button onClick={clearPattern}>CLEAR PATTERN</button><button onClick={clearEverything} title="Erase all patterns and every saved Library bank">CLEAR EVERYTHING</button></div></section>
+        <section><h2>BANK</h2><div className={styles.bottomButtons}><button onClick={generateBank}>GENERATE</button><button onClick={()=>setGeneratorOpen(v=>!v)} aria-expanded={generatorOpen}>{generatorOpen?'HIDE VARIATIONS':'VARIATIONS'}</button><button onClick={copyPattern} disabled={slot===0}>COPY PREVIOUS</button><button onClick={clearPattern}>CLEAR PATTERN</button></div></section>
         <section><h2>EXPORT</h2><div className={styles.bottomButtons}><label>BANK # <input type="number" min="0" max="63" value={bankNumber} onChange={e=>setBankNumber(Math.max(0,Math.min(63,Number(e.target.value)||0)))}/></label><button onClick={exportBank}>STOLPERBEATS</button><button onClick={exportMidi}>MIDI</button></div></section>
       </div>
+      <div className={styles.clearAllFooter}><button onClick={clearAllPatterns} title="Clear all 24 patterns on all six tracks; saved banks are preserved">CLEAR ALL 24 PATTERNS</button></div>
     </div>
 
     {view==='library'&&libraryPanel}
