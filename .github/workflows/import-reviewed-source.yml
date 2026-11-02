@@ -33,6 +33,9 @@ jobs:
         run: |
           set -euo pipefail
           rsync -a --exclude='.github/' --exclude='.git/' /tmp/reviewed-source/ ./
+          rm -f stopler-converter-source.tar.gz
+          git add -A
+          git diff --cached --name-only -z | xargs -0 -r sed -i 's/[[:blank:]]*$//' 
           git add -A
           git status --short
           git diff --cached --check
