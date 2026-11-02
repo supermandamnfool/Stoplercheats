@@ -37,8 +37,8 @@
   },
   "main": "electron/main.js",
   "build": {
-    "appId": "com.rob.stolperbeats.midiconverter",
-    "productName": "Stolperbeats MIDI Converter",
+    "appId": "com.rob.stopler",
+    "productName": "Stopler",
     "files": [
       "electron/**",
       "out/**",
