@@ -22,5 +22,5 @@ export function exportPatternMidi(bank:StepBank,slot:number,notes:Record<Track,n
     midiTrack.push({deltaTime:0,type:'endOfTrack'} as midiFile.MidiEvent);
     tracks.push(midiTrack);
   }
-  return midiFile.writeMidi({header:{format:1,numTracks:6,ticksPerBeat:ppq},tracks});
+  return Uint8Array.from(midiFile.writeMidi({header:{format:1,numTracks:6,ticksPerBeat:ppq},tracks}));
 }
