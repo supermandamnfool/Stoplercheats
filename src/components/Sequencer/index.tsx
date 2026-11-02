@@ -278,7 +278,7 @@ export default function Sequencer() {
     const renderLed=(on:number,index:number)=><button key={index}
       aria-label={`${t.label} step ${index+1}`} aria-pressed={!!on}
       title={`${t.label} · Step ${index+1}`}
-      className={`${styles.led} ${on?styles.lit:''} ${t.id===Tracks.KICK||t.id===Tracks.SNARE?styles.whiteLed:t.id===Tracks.PERC2?styles.redLed:styles.orangeLed} ${playhead%t.length===index&&playing?styles.playingLed:''} ${index%8===0?styles.eightLed:''} ${index%16===0?styles.barLed:''}`}
+      className={`${styles.led} ${on?styles.lit:''} ${t.id===Tracks.KICK?styles.redLed:t.id===Tracks.SNARE?styles.whiteLed:styles.orangeLed} ${playhead%t.length===index&&playing?styles.playingLed:''} ${index%8===0?styles.eightLed:''} ${index%16===0?styles.barLed:''}`}
       onClick={()=>{setSelectedTrack(t.id);if(!locked.includes(t.id))toggle(t.id,index);}}/>;
     return <div className={`${styles.matrixRow} ${long?styles.longRow:''}`} key={t.id}>
       <button className={`${styles.trackName} ${selectedTrack===t.id?styles.trackSelected:''}`}
