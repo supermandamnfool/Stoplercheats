@@ -188,6 +188,17 @@ export default function Sequencer() {
       state.timer=window.setInterval(tick,25);tick();
     }catch{setStatus('AUDIO PREVIEW UNAVAILABLE');stop();}
   };
+  useEffect(() => {
+    const onSpace = (event: KeyboardEvent) => {
+      if (event.code !== 'Space' || event.repeat || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || view !== 'sequencer') return;
+      const target = event.target;
+      if (target instanceof HTMLElement && (target.closest('input, textarea, select, button, [contenteditable="true"], [role="slider"]') || target.isContentEditable)) return;
+      event.preventDefault();
+      void play();
+    };
+    window.addEventListener('keydown', onSpace);
+    return () => window.removeEventListener('keydown', onSpace);
+  });
   const toggleTrack=(id:Track,items:Track[],setter:(value:Track[])=>void)=>setter(items.includes(id)?items.filter(t=>t!==id):[...items,id]);
   const generateTrack=(id:Track)=>{if(locked.includes(id))return;replaceTrack(id,musicalRandom(id,density));};
   const mutateTrack=(id:Track)=>{if(locked.includes(id))return;replaceTrack(id,mutate(id,steps[id][slot],variation));};
@@ -397,13 +408,18 @@ export default function Sequencer() {
         </section>
         
       </div>
-      {generatorOpen&&<div className={styles.bankInline}>{bankPanel}<div className={styles.bankInlineSettings}>{generatorControls}</div></div>}
+      <section className={styles.lowerPanel} aria-label="Pattern tools, audio and export">
+        {generatorOpen&&<div className={styles.bankInline}>
+          <div className={styles.bankInlineGenerator}>{bankPanel}</div>
+          <div className={styles.bankInlineSettings}>{generatorControls}</div>
+        </div>}
       <div className={styles.bottomBar}>
         <section><h2>AUDIO</h2><div className={styles.audioGrid}><span></span>{tracks.map(t=><strong key={t.id}>{t.label}</strong>)}<span>MUTE</span>{tracks.map(t=><label key={t.id}><input type="checkbox" checked={muted.includes(t.id)} onChange={()=>toggleTrack(t.id,muted,setMuted)}/></label>)}<span>SOLO</span>{tracks.map(t=><label key={t.id}><input type="checkbox" checked={solo.includes(t.id)} onChange={()=>toggleTrack(t.id,solo,setSolo)}/></label>)}</div></section>
         <section><h2>BANK</h2><div className={styles.bottomButtons}><button onClick={generateBank}>GENERATE</button><button onClick={()=>setGeneratorOpen(v=>!v)} aria-expanded={generatorOpen}>{generatorOpen?'HIDE VARIATIONS':'VARIATIONS'}</button><button onClick={copyPattern} disabled={slot===0}>COPY PREVIOUS</button><button onClick={clearPattern}>CLEAR PATTERN</button></div></section>
         <section><h2>EXPORT</h2><div className={styles.bottomButtons}><label>BANK # <input type="number" min="0" max="63" value={bankNumber} onChange={e=>setBankNumber(Math.max(0,Math.min(63,Number(e.target.value)||0)))}/></label><button onClick={exportBank}>STOLPERBEATS</button><button onClick={exportMidi}>MIDI</button></div></section>
       </div>
       <div className={styles.clearAllFooter}><button onClick={clearAllPatterns} title="Clear all 24 patterns on all six tracks; saved banks are preserved">CLEAR ALL 24 PATTERNS</button></div>
+      </section>
     </div>
 
     {view==='library'&&libraryPanel}
