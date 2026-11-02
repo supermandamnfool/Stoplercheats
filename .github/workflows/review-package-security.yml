@@ -1,0 +1,43 @@
+name: Review packaged Stopler security
+on:
+  push:
+    paths:
+      - '.github/workflows/review-package-security.yml'
+  workflow_dispatch:
+jobs:
+  security-review:
+    runs-on: macos-15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect source archive for executable payloads and dangerous install hooks
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p source
+          unzip -q stolperbeats-pattern-creator-github-ready.zip -d source
+          python3 - <<'PY'
+          import json, pathlib, hashlib
+          root=pathlib.Path('source')
+          files=[p for p in root.rglob('*') if p.is_file()]
+          print('Archive files:',len(files))
+          for p in files:
+              if p.suffix.lower() in {'.app','.dylib','.so','.node','.exe','.dll','.pkg','.sh','.command'}:
+                  print('REVIEW executable or script:',p, 'sha256:',hashlib.sha256(p.read_bytes()).hexdigest())
+          pkg=json.loads((root/'package.json').read_text())
+          print('NPM lifecycle scripts:',{k:v for k,v in pkg.get('scripts',{}).items() if k in ('preinstall','install','postinstall','prepare','prepack','postpack')})
+          for p in files:
+              if p.suffix in {'.js','.ts','.tsx','.json','.sh'} and p.stat().st_size<2000000:
+                  s=p.read_text(errors='replace')
+                  for needle in ('child_process','execSync(','spawn(','curl ','wget ','osascript','chmod +x','process.env','http://','https://'):
+                      if needle in s and ('node_modules' not in str(p)):
+                          print('REVIEW source marker:',p,needle)
+          PY
+      - name: Record original archive integrity
+        run: shasum -a 256 stolperbeats-pattern-creator-github-ready.zip
+      - name: Explain scope
+        run: |
+          echo 'This is a source-level triage, not an antivirus or notarization scan.'
+          echo 'The prior macOS malware alert remains unexplained.'
+          echo 'No executable installer is uploaded or published by this workflow.'
