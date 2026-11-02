@@ -41,3 +41,5 @@
 .knobIndicator{position:absolute;left:50%;top:5px;transform:translateX(-50%);width:4px;height:19px;border-radius:3px;background:#ffd34f;box-shadow:0 0 7px #ffcf44c9}
 .knob:focus-visible{outline:2px solid #ffdc67;outline-offset:5px}
 .knobValue{font-weight:850;color:#ffd34f;font-size:12px}
+
+.clearAllFooter{display:flex;justify-content:flex-end;padding:12px 0 18px}.clearAllFooter button{border:1px solid #ba765b;background:#2b1b20;color:#f5d6c9;border-radius:5px;padding:10px 18px;font-size:11px;font-weight:800;letter-spacing:.7px;cursor:pointer}.clearAllFooter button:hover{background:#4a2728;border-color:#f2a27c}
