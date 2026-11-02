@@ -7,6 +7,7 @@ import FileSelector from '@/components/FileSelector';
 import { DefaultMidiNoteMap, MidiNoteMap } from '@/core/midi-note-map';
 import { Track } from '@/core/track';
 import FileSaver from 'file-saver';
+import styles from './MidiUploader.module.css';
 
 const getBuffersFromFormFiles = async (form: HTMLFormElement): Promise<(Buffer | undefined)[]> => {
   const inputs = (new Array(BANK_NUM_PATTERNS * 2).fill(0)).map((_, i) => {
@@ -95,36 +96,35 @@ const onSubmit = useCallback(async (e: FormEvent<HTMLFormElement>) => {
     saveText(bankTextAreaRef.current.value);
   }, [saveText]);
 
-  return (
-    <>
-      <form onSubmit={onSubmit}>
-        MIDI files:
-        <FileSelector />
-
-        <br />
-        MIDI note mapping:
-        <NoteMapper midiNoteMapEntries={midiNoteMapEntries} setMidiNoteMapEntries={setMidiNoteMapEntries} />
-
-        <br />
-        <button type="submit">Generate</button>
-        <div style={{ marginTop: 12 }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <input type="checkbox" checked={densitySweepEnabled} onChange={(e) => setDensitySweepEnabled(e.target.checked)} />
-          <span>Use density sweep to fill all patterns from one MIDI</span>
-        </label>
+  return <div className={styles.converter}>
+    <header className={styles.converterHeader}><h2>MIDI CONVERTER</h2><p>IMPORT MIDI · MAP INSTRUMENTS · GENERATE A STOLPERBEATS BANK</p></header>
+    <form onSubmit={onSubmit}>
+      <section className={styles.card}>
+        <div className={styles.sectionHeading}><h3>01 / MIDI IMPORT</h3><span>UP TO 24 PATTERN SLOTS</span></div>
+        <p>Choose MIDI files for the pattern slots you want to fill. Empty slots are allowed.</p>
+        <div className={styles.fileGrid}><FileSelector /></div>
+      </section>
+      <div className={styles.twoColumns}>
+        <section className={styles.card}>
+          <div className={styles.sectionHeading}><h3>02 / TRACK MAPPING</h3><span>MIDI NOTE → DRUM TRACK</span></div>
+          <p>Assign incoming MIDI note numbers to the six Stolperbeats tracks. Red rows indicate duplicate notes.</p>
+          <div className={styles.mapper}><NoteMapper midiNoteMapEntries={midiNoteMapEntries} setMidiNoteMapEntries={setMidiNoteMapEntries} /></div>
+        </section>
+        <section className={styles.card}>
+          <div className={styles.sectionHeading}><h3>03 / CONVERSION SETTINGS</h3><span>PATTERN GENERATION</span></div>
+          <label className={styles.setting}><input type="checkbox" checked={densitySweepEnabled} onChange={e=>setDensitySweepEnabled(e.target.checked)}/>
+            <span><strong>DENSITY SWEEP</strong><small>Fill all 24 patterns with density variations from a single MIDI file. When enabled, select exactly one MIDI file above.</small></span>
+          </label>
+          <div className={styles.actionArea}><button className={styles.primary} type="submit">GENERATE STOLPERBEATS BANK →</button></div>
+        </section>
       </div>
     </form>
-
-      {bankString ? (
-        <div>
-          <br />
-          <button onClick={copyBank}>Copy</button>
-          <button onClick={saveBank}>Save</button>
-          <div>
-            <textarea rows={27} cols={90} ref={bankTextAreaRef} value={bankString} />
-          </div>
-        </div>
-      ) : null}
-    </>
-  )
+    <section className={styles.card}>
+      <div className={styles.sectionHeading}><h3>04 / EXPORT</h3><span>STOLPERBEATS BANK FORMAT</span></div>
+      {bankString ? <><p>Conversion complete. Save the generated pattern bank or copy its text.</p>
+        <div className={styles.exportActions}><button onClick={saveBank}>SAVE PATTERN BANK</button><button onClick={copyBank}>COPY BANK TEXT</button></div>
+        <textarea className={styles.output} rows={13} ref={bankTextAreaRef} value={bankString} readOnly aria-label="Generated Stolperbeats bank text"/>
+      </> : <p>Generate a bank above to enable export.</p>}
+    </section>
+  </div>;
 }
