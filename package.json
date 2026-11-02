@@ -1,5 +1,5 @@
 {
-  "name": "stolperbeats-pattern-creator",
+  "name": "stoplercheats",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -37,8 +37,8 @@
   },
   "main": "electron/main.js",
   "build": {
-    "appId": "com.rob.stopler",
-    "productName": "Stopler",
+    "appId": "com.rob.stoplercheats",
+    "productName": "Stoplercheats",
     "files": [
       "electron/**",
       "out/**",
@@ -50,16 +50,16 @@
         "zip"
       ],
       "category": "public.app-category.music",
-      "icon": "electron/icon"
+      "icon": "electron/icon.icns"
     }
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-username/stolperbeats-pattern-generator.git"
+    "url": "https://github.com/supermandamnfool/Stopler.git"
   },
   "bugs": {
-    "url": "https://github.com/your-username/stolperbeats-pattern-generator/issues"
+    "url": "https://github.com/supermandamnfool/Stopler/issues"
   },
-  "homepage": "https://github.com/your-username/stolperbeats-pattern-generator#readme",
+  "homepage": "https://github.com/supermandamnfool/Stopler",
   "version": "0.1.0"
 }
