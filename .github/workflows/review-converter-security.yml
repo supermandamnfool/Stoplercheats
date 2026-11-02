@@ -2,7 +2,7 @@ name: Review converter security and packaging
 on:
   push:
     branches: [release/converter-source-review]
-    paths: [.github/workflows/review-converter-security.yml]
+    paths: [.github/workflows/review-converter-security.yml, scripts/verify-mac-package.sh]
 permissions:
   contents: read
 jobs:
@@ -35,22 +35,7 @@ jobs:
           npx electron-builder --mac dir --arm64 --publish never
           APP='dist/mac-arm64/Stolperbeats MIDI Converter.app'
           test -d "$APP"
-          echo '--- Signature ---'
-          codesign -dv --verbose=4 "$APP" 2>&1 || true
-          echo '--- Initial verification ---'
-          if codesign --verify --deep --strict --verbose=4 "$APP" 2>&1; then
-            echo 'Initial signature valid'
-          else
-            echo '--- Inspect signing resources ---'
-            ls -la "$APP/Contents" "$APP/Contents/_CodeSignature" || true
-            find "$APP/Contents" -name CodeResources -print | head -30
-            echo '--- Attempt clean local ad-hoc re-sign for diagnosis only ---'
-            codesign --force --deep --sign - "$APP"
-            echo '--- Verify re-signed bundle ---'
-            codesign --verify --deep --strict --verbose=4 "$APP" 2>&1
-          fi
-          echo '--- Gatekeeper assessment (local runner; not a substitute for user Mac) ---'
-          spctl --assess --type execute --verbose=4 "$APP" 2>&1 || true
+          bash scripts/verify-mac-package.sh "$APP"
           echo '--- Package content ---'
           find "$APP/Contents/MacOS" -maxdepth 1 -type f -print
           echo '--- No installer uploaded ---'
