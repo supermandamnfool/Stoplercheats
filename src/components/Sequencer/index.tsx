@@ -249,20 +249,39 @@ export default function Sequencer() {
       changeDensity(selectedTrack,row,density);
     replaceTrack(selectedTrack,result);
   };
-  const renderTrack=(t:typeof tracks[number])=>(
-    <div className={styles.matrixRow} key={t.id}>
+  const renderTrack=(t:typeof tracks[number])=>{
+    const long=t.length===64;
+    const renderLed=(on:number,index:number)=><button key={index}
+      aria-label={`${t.label} step ${index+1}`} aria-pressed={!!on}
+      title={`${t.label} · Step ${index+1}`}
+      className={`${styles.led} ${on?styles.lit:''} ${t.id===Tracks.KICK||t.id===Tracks.SNARE?styles.whiteLed:t.id===Tracks.PERC2?styles.redLed:styles.orangeLed} ${playhead%t.length===index&&playing?styles.playingLed:''} ${index%8===0?styles.eightLed:''} ${index%16===0?styles.barLed:''}`}
+      onClick={()=>{setSelectedTrack(t.id);if(!locked.includes(t.id))toggle(t.id,index);}}/>;
+    return <div className={`${styles.matrixRow} ${long?styles.longRow:''}`} key={t.id}>
       <button className={`${styles.trackName} ${selectedTrack===t.id?styles.trackSelected:''}`}
         onClick={()=>setSelectedTrack(t.id)} aria-pressed={selectedTrack===t.id}>{t.label}</button>
       <span className={styles.trackLength}>{t.length}</span>
-      <div className={styles.ledRow} style={{gridTemplateColumns:`repeat(${t.length},minmax(0,1fr))`}}>
-        {steps[t.id][slot].map((on,index)=><button key={index}
-          aria-label={`${t.label} step ${index+1}`} aria-pressed={!!on}
-          title={`${t.label} · Step ${index+1}`}
-          className={`${styles.led} ${on?styles.lit:''} ${t.id===Tracks.KICK||t.id===Tracks.SNARE?styles.whiteLed:t.id===Tracks.PERC2?styles.redLed:styles.orangeLed} ${playhead%t.length===index&&playing?styles.playingLed:''} ${index%16===0?styles.barLed:''}`}
-          onClick={()=>{setSelectedTrack(t.id);if(!locked.includes(t.id))toggle(t.id,index);}}/>)}
+      <div className={styles.ledStack}>
+        {(long?[0,32]:[0]).map(offset=><div key={offset} className={`${styles.ledRow} ${long?styles.longLedRow:styles.shortLedRow}`}
+          style={{gridTemplateColumns:`repeat(${long?32:16},minmax(0,1fr))`}}>
+          {steps[t.id][slot].slice(offset,offset+(long?32:16)).map((on,i)=>renderLed(on,i+offset))}
+        </div>)}
       </div>
-    </div>
-  );
+      <div className={styles.trackGenerator}>
+        <button disabled={locked.includes(t.id)} onClick={()=>generateTrack(t.id)}>RANDOM</button>
+        <button disabled={locked.includes(t.id)} onClick={()=>mutateTrack(t.id)}>MUTATE</button>
+        <button disabled={locked.includes(t.id)} onClick={()=>replaceTrack(t.id,changeDensity(t.id,steps[t.id][slot],density))}>DENSITY</button>
+        <button aria-pressed={locked.includes(t.id)} onClick={()=>toggleTrack(t.id,locked,setLocked)}>{locked.includes(t.id)?'UNLOCK':'LOCK'}</button>
+        <button onClick={()=>{setTrackClipboard(steps[t.id][slot].slice());setSelectedTrack(t.id);}}>COPY</button>
+        <button disabled={!trackClipboard||trackClipboard.length!==t.length||locked.includes(t.id)} onClick={()=>{if(trackClipboard)replaceTrack(t.id,trackClipboard.slice());}}>PASTE</button>
+        <button disabled={locked.includes(t.id)} onClick={()=>replaceTrack(t.id,rotate(steps[t.id][slot],-1))}>◀ SHIFT</button>
+        <button disabled={locked.includes(t.id)} onClick={()=>replaceTrack(t.id,rotate(steps[t.id][slot],1))}>SHIFT ▶</button>
+        <button disabled={locked.includes(t.id)} onClick={()=>replaceTrack(t.id,timeTransform(steps[t.id][slot],0.5))}>½ TIME</button>
+        <button disabled={locked.includes(t.id)} onClick={()=>replaceTrack(t.id,timeTransform(steps[t.id][slot],2))}>2× TIME</button>
+        <button disabled={locked.includes(t.id)} onClick={()=>replaceTrack(t.id,[...steps[t.id][slot]].reverse())}>REVERSE</button>
+        <button disabled={locked.includes(t.id)} onClick={()=>replaceTrack(t.id,Array(t.length).fill(0))}>CLEAR</button>
+      </div>
+    </div>;
+  };
   const toggleLock=(id:Track)=>toggleTrack(id,locked,setLocked);
   const copySelected=()=>{setTrackClipboard(steps[selectedTrack][slot].slice());setStatus('TRACK COPIED');};
   const pasteSelected=()=>{if(trackClipboard&&trackClipboard.length===current.length&&selectedEditable)replaceTrack(selectedTrack,trackClipboard.slice());};
@@ -323,14 +342,13 @@ export default function Sequencer() {
     <header className={styles.topBar}>
       <div className={styles.brand}><strong>Stoplerbeats</strong><span>Midi Generator and Converter</span></div>
       <nav className={styles.navigation} aria-label="Application sections">
-        {(['sequencer','generator','converter','library'] as const).map(name=><button key={name} className={view===name?styles.activeTab:''} onClick={()=>setView(name)}>{name==='sequencer'?'SEQUENCER':name==='generator'?'GENERATOR':name==='converter'?'MIDI CONVERTER':'LIBRARY'}</button>)}
+        {(['sequencer','converter','library'] as const).map(name=><button key={name} className={view===name?styles.activeTab:''} onClick={()=>setView(name)}>{name==='sequencer'?'SEQUENCER':name==='generator'?'GENERATOR':name==='converter'?'MIDI CONVERTER':'LIBRARY'}</button>)}
       </nav>
     </header>
     <div style={{display:view==='sequencer'?'block':'none'}}>
       <div className={styles.transport}>
         <div className={styles.transportLeft}>
-          <button className={`${styles.roundTransport} ${playing?styles.transportOn:''}`} onClick={()=>{if(!playing)void play();}} aria-label="Play">▶</button>
-          <button className={styles.roundTransport} onClick={stop} aria-label="Stop">■</button>
+          <button className={`${styles.roundTransport} ${playing?styles.transportOn:''}`} onClick={()=>void play()} aria-label={playing?'Stop':'Play'} title={playing?'Stop playback':'Start playback'}>{playing?'■':'▶'}</button>
           <label className={styles.tempo}>BPM <input type="number" min="40" max="260" value={bpm} onChange={e=>setBpm(Math.max(40,Math.min(260,Number(e.target.value)||120)))}/></label>
           <label className={styles.volume}>VOLUME <input aria-label="Master volume" type="range" min="0" max="1" step=".01" value={volume} onChange={e=>{setVolume(Number(e.target.value));audioRef.current?.volume(Number(e.target.value));}}/></label>
         </div>
@@ -350,18 +368,19 @@ export default function Sequencer() {
       </div>
       <div className={styles.workspace}>
         <section className={styles.sequencerMatrix}>
-          <div className={styles.matrixHeading}><span>TRACK</span><span>LENGTH</span><div className={styles.ruler}>{[1,8,16,24,32,40,48,56,64].map(n=><span key={n}>{n}</span>)}</div></div>
+          <div className={styles.matrixHeading}><span>TRACK</span><span>LENGTH</span><span>STEPS · GROUPED IN EIGHTS</span><span>TRACK GENERATOR</span></div>
           {tracks.map(renderTrack)}
         </section>
-        <aside className={styles.generatorSide}><h2>GENERATOR</h2>{generatorControls}</aside>
+        
       </div>
+      {generatorOpen&&<div className={styles.bankInline}>{bankPanel}<div className={styles.bankInlineSettings}>{generatorControls}</div></div>}
       <div className={styles.bottomBar}>
         <section><h2>AUDIO</h2><div className={styles.audioGrid}><span></span>{tracks.map(t=><strong key={t.id}>{t.label}</strong>)}<span>MUTE</span>{tracks.map(t=><label key={t.id}><input type="checkbox" checked={muted.includes(t.id)} onChange={()=>toggleTrack(t.id,muted,setMuted)}/></label>)}<span>SOLO</span>{tracks.map(t=><label key={t.id}><input type="checkbox" checked={solo.includes(t.id)} onChange={()=>toggleTrack(t.id,solo,setSolo)}/></label>)}</div></section>
-        <section><h2>BANK</h2><div className={styles.bottomButtons}><button onClick={generateBank}>GENERATE</button><button onClick={()=>setView('generator')}>VARIATIONS</button><button onClick={copyPattern} disabled={slot===0}>COPY PREVIOUS</button><button onClick={clearPattern}>CLEAR</button></div></section>
+        <section><h2>BANK</h2><div className={styles.bottomButtons}><button onClick={generateBank}>GENERATE</button><button onClick={()=>setGeneratorOpen(v=>!v)} aria-expanded={generatorOpen}>{generatorOpen?'HIDE VARIATIONS':'VARIATIONS'}</button><button onClick={copyPattern} disabled={slot===0}>COPY PREVIOUS</button><button onClick={clearPattern}>CLEAR</button></div></section>
         <section><h2>EXPORT</h2><div className={styles.bottomButtons}><label>BANK # <input type="number" min="0" max="63" value={bankNumber} onChange={e=>setBankNumber(Math.max(0,Math.min(63,Number(e.target.value)||0)))}/></label><button onClick={exportBank}>STOLPERBEATS</button><button onClick={exportMidi}>MIDI</button></div></section>
       </div>
     </div>
-    {view==='generator'&&<>{bankPanel}<div className={styles.extraPanel}><h2>TRACK GENERATION</h2>{generatorControls}<div className={styles.controls}><label>SELECT TRACK <select value={selectedTrack} onChange={e=>setSelectedTrack(e.target.value as Track)}>{tracks.map(t=><option key={t.id} value={t.id}>{t.label}</option>)}</select></label><button onClick={()=>runSelected('density')} disabled={!selectedEditable}>APPLY DENSITY</button><button onClick={()=>runSelected('half')} disabled={!selectedEditable}>½ TIME</button><button onClick={()=>runSelected('double')} disabled={!selectedEditable}>2× TIME</button></div></div></>}
+
     {view==='library'&&libraryPanel}
     {view==='converter'&&<>{exportPanel}<div className={styles.converterLegacy}><MidiUploader /></div></>}
     <footer>{status} · AUTOSAVED LOCALLY · STOPLERCHEATS</footer>
