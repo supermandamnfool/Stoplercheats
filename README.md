@@ -1,7 +1,6 @@
-# Stolperbeats Pattern Generator
+# Stolpercheats Midi Generator Converter
 
-Create **Stolperbeats** pattern banks from MIDI or from a **Mutable Instruments Grids**-style generator.  
-Runs as a web app (Next.js) and as a desktop app (Electron).
+Create **Stolperbeats** pattern banks from MIDI or generate your own in the sequencer and export midi or stoplerbeats text files (Next.js) and as a desktop app (Electron).
 
 ## Quick Start (Web)
 ```bash
