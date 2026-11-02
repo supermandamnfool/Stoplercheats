@@ -190,14 +190,17 @@ export default function Sequencer() {
   };
   useEffect(() => {
     const onSpace = (event: KeyboardEvent) => {
-      if (event.code !== 'Space' || event.repeat || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || view !== 'sequencer') return;
+      if (event.code !== 'Space' || view !== 'sequencer' || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
       const target = event.target;
-      if (target instanceof HTMLElement && (target.closest('input, textarea, select, button, [contenteditable="true"], [role="slider"]') || target.isContentEditable)) return;
+      if (target instanceof HTMLElement && (target.closest('input, textarea, select, [contenteditable="true"], [role="slider"]') || target.isContentEditable)) return;
+      // Capture Space before the focused button can treat it as a click.
+      // Prevent the browser's default Space-to-click behavior even on key repeats.
       event.preventDefault();
-      void play();
+      event.stopPropagation();
+      if (!event.repeat) void play();
     };
-    window.addEventListener('keydown', onSpace);
-    return () => window.removeEventListener('keydown', onSpace);
+    window.addEventListener('keydown', onSpace, true);
+    return () => window.removeEventListener('keydown', onSpace, true);
   });
   const toggleTrack=(id:Track,items:Track[],setter:(value:Track[])=>void)=>setter(items.includes(id)?items.filter(t=>t!==id):[...items,id]);
   const generateTrack=(id:Track)=>{if(locked.includes(id))return;replaceTrack(id,musicalRandom(id,density));};
