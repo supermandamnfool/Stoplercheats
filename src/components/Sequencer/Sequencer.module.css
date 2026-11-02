@@ -67,10 +67,10 @@
 .lowerPanel .knobFace{width:49px;height:49px}
 .lowerPanel .knobIndicator{height:16px}
 .lowerPanel .dividerTitle{font-size:11px}
-.lowerPanel .dividerTitle:nth-of-type(1){grid-column:2;grid-row:1}
+.lowerPanel .generatorControls>.dividerTitle:nth-child(3){grid-column:2;grid-row:1}
 .lowerPanel .lockGrid{grid-column:2;grid-row:2;max-width:none;gap:5px}
 .lowerPanel .lockGrid label{gap:4px}
-.lowerPanel .dividerTitle:nth-of-type(2){grid-column:2;grid-row:3}
+.lowerPanel .generatorControls>.dividerTitle:nth-child(5){grid-column:2;grid-row:3}
 .lowerPanel .generatorControls>select{grid-column:2;grid-row:4;max-width:100%;padding:6px}
 .lowerPanel .bottomBar{grid-template-columns:minmax(0,1.25fr) minmax(0,1.2fr) minmax(0,.9fr);gap:17px;padding:13px 0 9px}
 .lowerPanel .bottomBar section+section{padding-left:17px}
@@ -89,7 +89,7 @@
 @media(max-width:760px){
  .lowerPanel{padding:12px}
  .lowerPanel .bankInlineSettings .generatorControls{grid-template-columns:1fr}
- .lowerPanel .generatorButtons,.lowerPanel .dials,.lowerPanel .dividerTitle:nth-of-type(1),.lowerPanel .dividerTitle:nth-of-type(2),.lowerPanel .lockGrid,.lowerPanel .generatorControls>select{grid-column:1;grid-row:auto}
+ .lowerPanel .generatorButtons,.lowerPanel .dials,.lowerPanel .generatorControls>.dividerTitle:nth-child(3),.lowerPanel .generatorControls>.dividerTitle:nth-child(5),.lowerPanel .lockGrid,.lowerPanel .generatorControls>select{grid-column:1;grid-row:auto}
  .lowerPanel .bottomBar{grid-template-columns:1fr}
  .lowerPanel .bottomBar section+section,.lowerPanel .bottomBar section:last-child{grid-column:1;border-left:0;border-top:1px solid #55454f;padding:10px 0 0}
 }
