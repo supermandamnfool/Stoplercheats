@@ -34,6 +34,16 @@ jobs:
                       if needle in s and ('node_modules' not in str(p)):
                           print('REVIEW source marker:',p,needle)
           PY
+      - name: Inspect build script and Electron entrypoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '=== ORIGINAL BUILD SCRIPT ==='
+          cat source/build.sh
+          echo '=== ORIGINAL ELECTRON MAIN PROCESS ==='
+          cat source/electron/main.js
+          echo '=== SOURCE PACKAGE SCRIPT DEFINITIONS ==='
+          node -e "console.log(JSON.stringify(require('./source/package.json').scripts,null,2))"
       - name: Record original archive integrity
         run: shasum -a 256 stolperbeats-pattern-creator-github-ready.zip
       - name: Explain scope
