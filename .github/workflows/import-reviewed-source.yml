@@ -5,6 +5,7 @@ on:
     paths: [.github/workflows/import-reviewed-source.yml]
 permissions:
   contents: write
+  actions: read
 jobs:
   import:
     runs-on: ubuntu-latest
