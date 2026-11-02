@@ -43,3 +43,8 @@
 .knobValue{font-weight:850;color:#ffd34f;font-size:12px}
 
 .clearAllFooter{display:flex;justify-content:flex-end;padding:12px 0 18px}.clearAllFooter button{border:1px solid #ba765b;background:#2b1b20;color:#f5d6c9;border-radius:5px;padding:10px 18px;font-size:11px;font-weight:800;letter-spacing:.7px;cursor:pointer}.clearAllFooter button:hover{background:#4a2728;border-color:#f2a27c}
+
+
+/* v2 final: clearly visible red eight-step landmark rings on every track */
+.app .led.eightLed,.app .led.barLed{border:2px solid #f34a43!important;box-shadow:0 0 0 1px #b92527,0 0 7px #ed302e7a!important}
+.app .led.barLed{border-color:#ff6558!important;box-shadow:0 0 0 2px #cf2528,0 0 9px #ff403c99!important}
