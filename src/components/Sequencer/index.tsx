@@ -9,6 +9,7 @@ import { TRACKS, cloneBank, musicalRandom, mutate, changeDensity, rotate, timeTr
 import { DrumPreview } from '@/core/drum-preview';
 import { exportPatternMidi, DEFAULT_EXPORT_NOTES } from '@/core/midi-export';
 import JSZip from 'jszip';
+import MidiUploader from '@/components/MidiUploader';
 
 const tracks: { id: Track; label: string; length: number }[] = [
   { id: Tracks.KICK, label: 'KICK', length: 64 },
@@ -362,7 +363,7 @@ export default function Sequencer() {
     </div>
     {view==='generator'&&<>{bankPanel}<div className={styles.extraPanel}><h2>TRACK GENERATION</h2>{generatorControls}<div className={styles.controls}><label>SELECT TRACK <select value={selectedTrack} onChange={e=>setSelectedTrack(e.target.value as Track)}>{tracks.map(t=><option key={t.id} value={t.id}>{t.label}</option>)}</select></label><button onClick={()=>runSelected('density')} disabled={!selectedEditable}>APPLY DENSITY</button><button onClick={()=>runSelected('half')} disabled={!selectedEditable}>½ TIME</button><button onClick={()=>runSelected('double')} disabled={!selectedEditable}>2× TIME</button></div></div></>}
     {view==='library'&&libraryPanel}
-    {view==='converter'&&exportPanel}
+    {view==='converter'&&<>{exportPanel}<div className={styles.converterLegacy}><MidiUploader /></div></>}
     <footer>{status} · AUTOSAVED LOCALLY · STOPLERCHEATS</footer>
   </div>;
 }
