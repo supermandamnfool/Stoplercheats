@@ -69,6 +69,8 @@ export default function Sequencer() {
   const soloRef=useRef(solo);soloRef.current=solo;
   const bpmRef=useRef(bpm);bpmRef.current=bpm;
   const [status, setStatus] = useState('READY');
+  const [view, setView] = useState<'sequencer'|'generator'|'library'|'converter'>('sequencer');
+  const [selectedTrack, setSelectedTrack] = useState<Track>(Tracks.KICK);
   const stepsRef = useRef(steps);
   stepsRef.current = steps;
   useEffect(() => {
@@ -229,105 +231,138 @@ export default function Sequencer() {
       setStatus(`EXPORTED ${filename.toUpperCase()}`);
     } catch { setStatus('EXPORT FAILED'); }
   };
-  const renderTrack = (t: typeof tracks[number]) => (
-    <section className={styles.track} key={t.id}>
-      <div className={styles.trackHeader}>
-        <strong>{t.label}</strong><span>{t.length} STEPS</span>
-        <div className={styles.trackTools}>
-          <button onClick={()=>{setTrackClipboard(steps[t.id][slot].slice());setStatus('TRACK COPIED');}}>COPY</button>
-          <button disabled={!trackClipboard||trackClipboard.length!==t.length||locked.includes(t.id)} onClick={()=>{if(trackClipboard)replaceTrack(t.id,trackClipboard.slice());}}>PASTE</button>
-          <button aria-pressed={locked.includes(t.id)} onClick={()=>toggleTrack(t.id,locked,setLocked)}>{locked.includes(t.id)?'UNLOCK':'LOCK'}</button>
-          <button aria-pressed={muted.includes(t.id)} onClick={()=>toggleTrack(t.id,muted,setMuted)}>MUTE</button>
-          <button aria-pressed={solo.includes(t.id)} onClick={()=>toggleTrack(t.id,solo,setSolo)}>SOLO</button>
-          <button disabled={locked.includes(t.id)} onClick={()=>generateTrack(t.id)}>RANDOM</button>
-          <button disabled={locked.includes(t.id)} onClick={()=>mutateTrack(t.id)}>MUTATE</button>
-          <button disabled={locked.includes(t.id)} onClick={()=>replaceTrack(t.id,changeDensity(t.id,steps[t.id][slot],density))}>DENSITY</button>
-          <button disabled={locked.includes(t.id)} onClick={() => replaceTrack(t.id, Array(t.length).fill(0))}>CLEAR</button>
-          <button disabled={locked.includes(t.id)} onClick={() => replaceTrack(t.id, rotate(steps[t.id][slot],-1))}>SHIFT -1</button>
-          <button disabled={locked.includes(t.id)} onClick={() => replaceTrack(t.id,timeTransform(steps[t.id][slot],0.5))}>½ TIME</button>
-          <button disabled={locked.includes(t.id)} onClick={() => replaceTrack(t.id,timeTransform(steps[t.id][slot],2))}>2× TIME</button>
-          <button disabled={locked.includes(t.id)} onClick={() => replaceTrack(t.id, rotate(steps[t.id][slot],1))}>SHIFT +1</button>
+
+  const current = tracks.find(t=>t.id===selectedTrack)!;
+  const selectedEditable = !locked.includes(selectedTrack);
+  const runSelected=(action:'random'|'mutate'|'clear'|'reverse'|'left'|'right'|'half'|'double'|'density')=>{
+    if(!selectedEditable)return;
+    const row=steps[selectedTrack][slot];
+    const result=action==='random'?musicalRandom(selectedTrack,density):
+      action==='mutate'?mutate(selectedTrack,row,variation):
+      action==='clear'?Array(current.length).fill(0):
+      action==='reverse'?[...row].reverse():
+      action==='left'?rotate(row,-1):
+      action==='right'?rotate(row,1):
+      action==='half'?timeTransform(row,0.5):
+      action==='double'?timeTransform(row,2):
+      changeDensity(selectedTrack,row,density);
+    replaceTrack(selectedTrack,result);
+  };
+  const renderTrack=(t:typeof tracks[number])=>(
+    <div className={styles.matrixRow} key={t.id}>
+      <button className={`${styles.trackName} ${selectedTrack===t.id?styles.trackSelected:''}`}
+        onClick={()=>setSelectedTrack(t.id)} aria-pressed={selectedTrack===t.id}>{t.label}</button>
+      <span className={styles.trackLength}>{t.length}</span>
+      <div className={styles.ledRow} style={{gridTemplateColumns:`repeat(${t.length},minmax(0,1fr))`}}>
+        {steps[t.id][slot].map((on,index)=><button key={index}
+          aria-label={`${t.label} step ${index+1}`} aria-pressed={!!on}
+          title={`${t.label} · Step ${index+1}`}
+          className={`${styles.led} ${on?styles.lit:''} ${t.id===Tracks.KICK||t.id===Tracks.SNARE?styles.whiteLed:t.id===Tracks.PERC2?styles.redLed:styles.orangeLed} ${playhead%t.length===index&&playing?styles.playingLed:''} ${index%16===0?styles.barLed:''}`}
+          onClick={()=>{setSelectedTrack(t.id);if(!locked.includes(t.id))toggle(t.id,index);}}/>)}
+      </div>
+    </div>
+  );
+  const toggleLock=(id:Track)=>toggleTrack(id,locked,setLocked);
+  const copySelected=()=>{setTrackClipboard(steps[selectedTrack][slot].slice());setStatus('TRACK COPIED');};
+  const pasteSelected=()=>{if(trackClipboard&&trackClipboard.length===current.length&&selectedEditable)replaceTrack(selectedTrack,trackClipboard.slice());};
+  const bankOptions=Array.from({length:24},(_,i)=><option key={i} value={i}>{String(i+1).padStart(2,'0')}</option>);
+  const generatorControls=<div className={styles.generatorControls}>
+    <div className={styles.generatorButtons}>
+      <button className={styles.accentButton} onClick={()=>runSelected('random')} disabled={!selectedEditable}>MUSICAL RANDOM</button>
+      <button onClick={()=>runSelected('mutate')} disabled={!selectedEditable}>MUTATE</button>
+      <button onClick={generateBank}>BANK GEN</button>
+    </div>
+    <div className={styles.dials}>
+      <label>DENSITY <input type="range" min="0" max="1" step=".01" value={density} onChange={e=>setDensity(Number(e.target.value))}/><span>{Math.round(density*100)}%</span></label>
+      <label>VARIATION <input type="range" min="0" max="1" step=".01" value={variation} onChange={e=>setVariation(Number(e.target.value))}/><span>{Math.round(variation*100)}%</span></label>
+    </div>
+    <div className={styles.dividerTitle}>TRACK LOCK</div>
+    <div className={styles.lockGrid}>{tracks.map(t=><label key={t.id}><input type="checkbox" checked={locked.includes(t.id)} onChange={()=>toggleLock(t.id)}/>{t.label}</label>)}</div>
+    <div className={styles.dividerTitle}>RHYTHMIC TRANSFORM</div>
+    <select aria-label="Apply rhythmic transform" value="" onChange={e=>{if(e.target.value)runSelected(e.target.value as 'left'|'right'|'half'|'double'|'reverse'|'density');}}>
+      <option value="">CHOOSE TRANSFORM</option><option value="left">SHIFT LEFT</option><option value="right">SHIFT RIGHT</option>
+      <option value="half">½ TIME</option><option value="double">2× TIME</option><option value="reverse">REVERSE</option><option value="density">APPLY DENSITY</option>
+    </select>
+  </div>;
+  const bankPanel=<div className={styles.extraPanel}>
+    <h2>PATTERN BANK GENERATOR</h2>
+    <div className={styles.controls}>
+      <label>SOURCE SLOT <select value={sourceSlot} onChange={e=>setSourceSlot(Number(e.target.value))}>{bankOptions}</select></label>
+      <label>EVOLUTION <select value={evolution} onChange={e=>setEvolution(e.target.value as Evolution)}><option value="steady">STEADY</option><option value="build">BUILD</option><option value="reduce">REDUCE</option><option value="wave">WAVE</option></select></label>
+      <label><input type="checkbox" checked={selectedRange} onChange={e=>setSelectedRange(e.target.checked)}/> SELECTED RANGE</label>
+      {selectedRange&&<><label>FROM <input type="number" min="1" max="24" value={rangeStart} onChange={e=>setRangeStart(Math.max(1,Math.min(rangeEnd,Number(e.target.value)||1)))}/></label><label>TO <input type="number" min="1" max="24" value={rangeEnd} onChange={e=>setRangeEnd(Math.max(rangeStart,Math.min(24,Number(e.target.value)||24)))}/></label></>}
+      <button className={styles.accentButton} onClick={generateBank}>GENERATE VARIATIONS</button>
+      <button onClick={()=>{setDensity(.3);setVariation(.35);setEvolution('steady');setSelectedRange(false);setRangeStart(1);setRangeEnd(24);}}>RESET SETTINGS</button>
+    </div>
+  </div>;
+  const libraryPanel=<div className={styles.extraPanel}>
+    <h2>LIBRARY <small>{library.length} SAVED BANKS</small></h2>
+    <div className={styles.controls}>
+      <label>FOLDER <input value={folder} onChange={e=>setFolder(e.target.value)}/></label>
+      <label>NAME <input placeholder="Bank name" value={libraryName} onChange={e=>setLibraryName(e.target.value)}/></label>
+      <button onClick={saveToLibrary}>SAVE CURRENT BANK</button>
+      <button onClick={backupLibrary}>BACKUP LIBRARY</button>
+      <label>RESTORE BACKUP <input type="file" accept=".json" onChange={e=>{const file=e.target.files?.[0];if(file)void restoreLibrary(file);e.target.value='';}}/></label>
+    </div>
+    {library.map((entry,i)=><div className={styles.libraryItem} key={i}>
+      <span>{entry.folder} / {entry.name}</span><button onClick={()=>loadLibrary(i)}>LOAD</button>
+      <button onClick={()=>setLibrary(current=>[...current,{...entry,name:entry.name+' Copy',bank:cloneBank(entry.bank)}])}>DUPLICATE</button>
+      <button onClick={()=>{const name=prompt('Rename bank',entry.name);if(name?.trim())setLibrary(current=>current.map((item,j)=>j===i?{...item,name:name.trim()}:item));}}>RENAME</button>
+      <button onClick={()=>{if(confirm('Delete this saved bank?'))setLibrary(current=>current.filter((_,j)=>j!==i));}}>DELETE</button>
+    </div>)}
+  </div>;
+  const exportPanel=<div className={styles.extraPanel}>
+    <h2>MIDI EXPORT <small>SIX NAMED TRACKS · 16TH GRID</small></h2>
+    <div className={styles.controls}>
+      {tracks.map(t=><label key={t.id}>{t.label} NOTE <input type="number" min="0" max="127" value={midiNotes[t.id]} onChange={e=>setMidiNotes(previous=>({...previous,[t.id]:Math.max(0,Math.min(127,Number(e.target.value)||0))}))}/></label>)}
+      <button onClick={exportMidi}>EXPORT SELECTED MIDI</button><button onClick={()=>void exportAllMidi()}>EXPORT 24 MIDI FILES (ZIP)</button>
+    </div>
+  </div>;
+  return <div className={styles.app}>
+    <header className={styles.topBar}>
+      <div className={styles.brand}><strong>Stoplerbeats</strong><span>Midi Generator and Converter</span></div>
+      <nav className={styles.navigation} aria-label="Application sections">
+        {(['sequencer','generator','converter','library'] as const).map(name=><button key={name} className={view===name?styles.activeTab:''} onClick={()=>setView(name)}>{name==='sequencer'?'SEQUENCER':name==='generator'?'GENERATOR':name==='converter'?'MIDI CONVERTER':'LIBRARY'}</button>)}
+      </nav>
+    </header>
+    <div style={{display:view==='sequencer'?'block':'none'}}>
+      <div className={styles.transport}>
+        <div className={styles.transportLeft}>
+          <button className={`${styles.roundTransport} ${playing?styles.transportOn:''}`} onClick={()=>{if(!playing)void play();}} aria-label="Play">▶</button>
+          <button className={styles.roundTransport} onClick={stop} aria-label="Stop">■</button>
+          <label className={styles.tempo}>BPM <input type="number" min="40" max="260" value={bpm} onChange={e=>setBpm(Math.max(40,Math.min(260,Number(e.target.value)||120)))}/></label>
+          <label className={styles.volume}>VOLUME <input aria-label="Master volume" type="range" min="0" max="1" step=".01" value={volume} onChange={e=>{setVolume(Number(e.target.value));audioRef.current?.volume(Number(e.target.value));}}/></label>
+        </div>
+        <div className={styles.patternPicker}>
+          <span className={styles.sectionCaption}>PATTERN</span>
+          <div className={styles.patternSelect}><button onClick={()=>setSlot(i=>(i+23)%24)} aria-label="Previous pattern">◀</button><strong>{String(slot+1).padStart(2,'0')}</strong><button onClick={()=>setSlot(i=>(i+1)%24)} aria-label="Next pattern">▶</button></div>
+        </div>
+        <div className={styles.slotMatrix}>{Array.from({length:24},(_,i)=><button key={i} className={slot===i?styles.slotActive:''} onClick={()=>setSlot(i)} aria-label={`Pattern ${i+1}`}>{String(i+1).padStart(2,'0')}</button>)}</div>
+        <div className={styles.editBox}><div className={styles.sectionCaption}>EDIT <small>SELECTED TRACK: {current.label}</small></div>
+          <div className={styles.editButtons}>
+            <button onClick={copySelected}>COPY</button><button onClick={pasteSelected} disabled={!trackClipboard||trackClipboard.length!==current.length||!selectedEditable}>PASTE</button>
+            <button onClick={()=>runSelected('clear')} disabled={!selectedEditable}>CLEAR</button><button onClick={()=>runSelected('reverse')} disabled={!selectedEditable}>REVERSE</button>
+            <button onClick={()=>runSelected('left')} disabled={!selectedEditable}>◀ SHIFT</button><button onClick={()=>runSelected('right')} disabled={!selectedEditable}>SHIFT ▶</button>
+            <button onClick={undo} disabled={!history.length}>UNDO</button><button onClick={redo} disabled={!future.length}>REDO</button>
+          </div>
         </div>
       </div>
-      <div className={styles.steps} style={{ gridTemplateColumns: `repeat(${t.length}, minmax(0, 1fr))` }}>
-        {steps[t.id][slot].map((on, index) => (
-          <button key={index} aria-label={`${t.label} step ${index + 1}`} aria-pressed={!!on}
-            title={`Step ${index + 1}`}
-            className={`${styles.step} ${on ? styles.on : ''} ${index % 16 === 0 ? styles.barStart : ''}`}
-            onClick={() => {if(!locked.includes(t.id))toggle(t.id, index);}} style={{outline:playhead%t.length===index?'1px solid #fff4b0':undefined}} />
-        ))}
+      <div className={styles.workspace}>
+        <section className={styles.sequencerMatrix}>
+          <div className={styles.matrixHeading}><span>TRACK</span><span>LENGTH</span><div className={styles.ruler}>{[1,8,16,24,32,40,48,56,64].map(n=><span key={n}>{n}</span>)}</div></div>
+          {tracks.map(renderTrack)}
+        </section>
+        <aside className={styles.generatorSide}><h2>GENERATOR</h2>{generatorControls}</aside>
       </div>
-    </section>
-  );
-  return <div className={styles.app}>
-    <header className={styles.header}><div><h1>STOLPERBEATS</h1><p>MIDI CONVERTER &amp; GENERATOR</p></div>
-      <span className={styles.badge}>SEQUENCER · DEVELOPMENT BUILD</span></header>
-    <div className={styles.toolbar}><strong>PATTERN SEQUENCER</strong><div className={styles.actions}>
-      <button disabled={!history.length} onClick={undo}>UNDO</button>
-      <button disabled={!future.length} onClick={redo}>REDO</button>
-      <button onClick={()=>{setPatternClipboard(Object.fromEntries(TRACKS.map(t=>[t,steps[t][slot].slice()])) as Record<Track,number[]>);setStatus('PATTERN COPIED');}}>COPY PATTERN</button>
-      <button onClick={pastePattern} disabled={!patternClipboard}>PASTE PATTERN</button>
-      <button onClick={copyPattern} disabled={slot === 0}>COPY PREVIOUS</button>
-      <button onClick={clearPattern}>CLEAR PATTERN</button>
-    </div></div>
-    <section className={styles.panel}><div className={styles.panelTitle}>PATTERN BANK <span>24 SLOTS</span></div>
-      <div className={styles.slots}>{Array.from({ length: 24 }, (_, i) =>
-        <button key={i} className={slot === i ? styles.selected : ''} onClick={() => setSlot(i)}>{String(i + 1).padStart(2, '0')}</button>)}</div>
-    </section>
-    <div className={styles.panel}><div className={styles.panelTitle}>STEP EDITOR <span>PATTERN {String(slot + 1).padStart(2, '0')}</span></div>
-      {tracks.slice(0, 2).map(renderTrack)}
-      <div className={styles.pair}>{tracks.slice(2, 4).map(renderTrack)}</div>
-      <div className={styles.pair}>{tracks.slice(4, 6).map(renderTrack)}</div>
+      <div className={styles.bottomBar}>
+        <section><h2>AUDIO</h2><div className={styles.audioGrid}><span></span>{tracks.map(t=><strong key={t.id}>{t.label}</strong>)}<span>MUTE</span>{tracks.map(t=><label key={t.id}><input type="checkbox" checked={muted.includes(t.id)} onChange={()=>toggleTrack(t.id,muted,setMuted)}/></label>)}<span>SOLO</span>{tracks.map(t=><label key={t.id}><input type="checkbox" checked={solo.includes(t.id)} onChange={()=>toggleTrack(t.id,solo,setSolo)}/></label>)}</div></section>
+        <section><h2>BANK</h2><div className={styles.bottomButtons}><button onClick={generateBank}>GENERATE</button><button onClick={()=>setView('generator')}>VARIATIONS</button><button onClick={copyPattern} disabled={slot===0}>COPY PREVIOUS</button><button onClick={clearPattern}>CLEAR</button></div></section>
+        <section><h2>EXPORT</h2><div className={styles.bottomButtons}><label>BANK # <input type="number" min="0" max="63" value={bankNumber} onChange={e=>setBankNumber(Math.max(0,Math.min(63,Number(e.target.value)||0)))}/></label><button onClick={exportBank}>STOLPERBEATS</button><button onClick={exportMidi}>MIDI</button></div></section>
+      </div>
     </div>
-    <section className={styles.panel}>
-      <div className={styles.panelTitle}>PLAYBACK <span>BUILT-IN DRUM PREVIEW</span></div>
-      <div className={styles.controls}>
-        <button className={styles.primary} onClick={()=>void play()}>{playing?'STOP':'PLAY'}</button>
-        <label>BPM <input type="number" min="40" max="260" value={bpm} onChange={e=>setBpm(Math.max(40,Math.min(260,Number(e.target.value)||120)))}/></label>
-        <label>MASTER VOLUME <input type="range" min="0" max="1" step="0.01" value={volume} onChange={e=>{setVolume(Number(e.target.value));audioRef.current?.volume(Number(e.target.value));}}/></label>
-        <label>DENSITY <input type="range" min="0" max="1" step="0.01" value={density} onChange={e=>setDensity(Number(e.target.value))}/>{Math.round(density*100)}%</label>
-        <label>VARIATION <input type="range" min="0" max="1" step="0.01" value={variation} onChange={e=>setVariation(Number(e.target.value))}/>{Math.round(variation*100)}%</label>
-      </div>
-    </section>
-    <section className={styles.panel}>
-      <button onClick={()=>setGeneratorOpen(v=>!v)}>{generatorOpen?'▼':'▶'} PATTERN BANK GENERATOR</button>
-      {generatorOpen&&<div className={styles.controls}>
-        <label>SOURCE SLOT <select value={sourceSlot} onChange={e=>setSourceSlot(Number(e.target.value))}>{Array.from({length:24},(_,i)=><option key={i} value={i}>{i+1}</option>)}</select></label>
-        <label>EVOLUTION <select value={evolution} onChange={e=>setEvolution(e.target.value as Evolution)}><option value="steady">STEADY</option><option value="build">BUILD</option><option value="reduce">REDUCE</option><option value="wave">WAVE</option></select></label>
-        <label><input type="checkbox" checked={selectedRange} onChange={e=>setSelectedRange(e.target.checked)}/> SELECTED RANGE</label>
-        {selectedRange&&<><label>FROM <input type="number" min="1" max="24" value={rangeStart} onChange={e=>setRangeStart(Math.max(1,Math.min(rangeEnd,Number(e.target.value)||1)))}/></label><label>TO <input type="number" min="1" max="24" value={rangeEnd} onChange={e=>setRangeEnd(Math.max(rangeStart,Math.min(24,Number(e.target.value)||24)))}/></label></>}
-        <button className={styles.primary} onClick={generateBank}>GENERATE VARIATIONS</button>
-        <button onClick={()=>{setDensity(0.3);setVariation(0.35);setEvolution('steady');setSelectedRange(false);setRangeStart(1);setRangeEnd(24);}}>RESET SETTINGS</button>
-      </div>}
-    </section>
-    <section className={styles.panel}>
-      <div className={styles.panelTitle}>LIBRARY <span>{library.length} SAVED BANKS</span></div>
-      <div className={styles.controls}>
-        <label>FOLDER <input value={folder} onChange={e=>setFolder(e.target.value)}/></label>
-        <label>NAME <input placeholder="Bank name" value={libraryName} onChange={e=>setLibraryName(e.target.value)}/></label>
-        <button onClick={saveToLibrary}>SAVE CURRENT BANK</button>
-        <button onClick={backupLibrary}>BACKUP LIBRARY</button>
-        <label>RESTORE BACKUP <input type="file" accept=".json" onChange={e=>{const file=e.target.files?.[0];if(file)void restoreLibrary(file);e.target.value='';}}/></label>
-      </div>
-      {library.map((entry,i)=><div className={styles.libraryItem} key={i}>
-        <span>{entry.folder} / {entry.name}</span>
-        <button onClick={()=>loadLibrary(i)}>LOAD</button>
-        <button onClick={()=>setLibrary(current=>[...current,{...entry,name:entry.name+' Copy',bank:cloneBank(entry.bank)}])}>DUPLICATE</button>
-        <button onClick={()=>{const name=prompt('Rename bank',entry.name);if(name?.trim())setLibrary(current=>current.map((item,j)=>j===i?{...item,name:name.trim()}:item));}}>RENAME</button>
-        <button onClick={()=>{if(confirm('Delete this saved bank?'))setLibrary(current=>current.filter((_,j)=>j!==i));}}>DELETE</button>
-      </div>)}
-    </section>
-    <section className={styles.panel}><div className={styles.panelTitle}>MIDI EXPORT <span>SEPARATE TRACKS · 16TH-NOTE GRID</span></div>
-      <div className={styles.controls}>
-        {tracks.map(t=><label key={t.id}>{t.label} NOTE <input type="number" min="0" max="127" value={midiNotes[t.id]} onChange={e=>setMidiNotes(previous=>({...previous,[t.id]:Math.max(0,Math.min(127,Number(e.target.value)||0))}))}/></label>)}
-        <button onClick={exportMidi}>EXPORT SELECTED MIDI</button><button onClick={()=>void exportAllMidi()}>EXPORT 24 MIDI FILES (ZIP)</button>
-      </div>
-    </section>
-    <section className={styles.panel}><div className={styles.export}>
-      <label>HARDWARE BANK NUMBER <input aria-label="Hardware bank number" type="number" min={0} max={63}
-        value={bankNumber} onChange={e => setBankNumber(Math.min(63, Math.max(0, Number(e.target.value) || 0)))} /></label>
-      <button className={styles.primary} onClick={exportBank}>EXPORT STOLPERBEATS BANK</button>
-    </div><p className={styles.hint}>Draft automatically saved on this Mac. Exports use the existing verified bank serializer.</p></section>
-    <footer>{status}</footer>
+    {view==='generator'&&<>{bankPanel}<div className={styles.extraPanel}><h2>TRACK GENERATION</h2>{generatorControls}<div className={styles.controls}><label>SELECT TRACK <select value={selectedTrack} onChange={e=>setSelectedTrack(e.target.value as Track)}>{tracks.map(t=><option key={t.id} value={t.id}>{t.label}</option>)}</select></label><button onClick={()=>runSelected('density')} disabled={!selectedEditable}>APPLY DENSITY</button><button onClick={()=>runSelected('half')} disabled={!selectedEditable}>½ TIME</button><button onClick={()=>runSelected('double')} disabled={!selectedEditable}>2× TIME</button></div></div></>}
+    {view==='library'&&libraryPanel}
+    {view==='converter'&&exportPanel}
+    <footer>{status} · AUTOSAVED LOCALLY · STOPLERCHEATS</footer>
   </div>;
 }
