@@ -1,8 +1,8 @@
 name: Build personal Mac app
 on:
   push:
-    branches: [release/converter-source-review]
-    paths: [.github/workflows/build-personal-mac-app.yml]
+    branches: [release/converter-source-review, feature/stopler-sequencer-v1]
+    paths: ['**']
   workflow_dispatch:
 permissions:
   contents: read
