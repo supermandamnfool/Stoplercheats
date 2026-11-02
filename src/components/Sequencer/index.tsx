@@ -35,6 +35,25 @@ function serializeBank(data: Steps): string {
   for (const t of tracks) bankData[t.id] = data[t.id].map(row => new Pattern(t.id, row as Note[]));
   return new Bank(bankData).toString();
 }
+function RotaryKnob({label,value,onChange}:{label:string;value:number;onChange:(value:number)=>void}) {
+  const drag=useRef<{y:number;value:number}|null>(null);
+  const update=(next:number)=>onChange(Math.max(0,Math.min(1,Math.round(next*100)/100)));
+  return <div className={styles.knobControl}>
+    <span className={styles.knobLabel}>{label}</span>
+    <div className={styles.knob} role="slider" tabIndex={0} aria-label={label}
+      aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(value*100)}
+      aria-valuetext={`${Math.round(value*100)} percent`}
+      title="Drag up or down to turn; arrow keys adjust"
+      onPointerDown={e=>{if(e.button!==0)return;drag.current={y:e.clientY,value};e.currentTarget.setPointerCapture(e.pointerId);e.preventDefault();}}
+      onPointerMove={e=>{if(!drag.current)return;update(drag.current.value+(drag.current.y-e.clientY)/150);}}
+      onPointerUp={e=>{drag.current=null;if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);}}
+      onPointerCancel={()=>{drag.current=null;}}
+      onKeyDown={e=>{if(e.key==='ArrowUp'||e.key==='ArrowRight'){update(value+.01);e.preventDefault();}else if(e.key==='ArrowDown'||e.key==='ArrowLeft'){update(value-.01);e.preventDefault();}else if(e.key==='Home'){update(0);e.preventDefault();}else if(e.key==='End'){update(1);e.preventDefault();}}}>
+      <span className={styles.knobFace} style={{transform:`rotate(${-135+value*270}deg)`}}><span className={styles.knobIndicator}/></span>
+    </div>
+    <span className={styles.knobValue}>{Math.round(value*100)}%</span>
+  </div>;
+}
 export default function Sequencer() {
   const [steps, setSteps] = useState<Steps>(emptySteps);
   const [slot, setSlot] = useState(0);
@@ -293,8 +312,8 @@ export default function Sequencer() {
       <button onClick={generateBank}>BANK GEN</button>
     </div>
     <div className={styles.dials}>
-      <label>DENSITY <input type="range" min="0" max="1" step=".01" value={density} onChange={e=>setDensity(Number(e.target.value))}/><span>{Math.round(density*100)}%</span></label>
-      <label>VARIATION <input type="range" min="0" max="1" step=".01" value={variation} onChange={e=>setVariation(Number(e.target.value))}/><span>{Math.round(variation*100)}%</span></label>
+      <RotaryKnob label="DENSITY" value={density} onChange={setDensity}/>
+      <RotaryKnob label="VARIATION" value={variation} onChange={setVariation}/>
     </div>
     <div className={styles.dividerTitle}>TRACK LOCK</div>
     <div className={styles.lockGrid}>{tracks.map(t=><label key={t.id}><input type="checkbox" checked={locked.includes(t.id)} onChange={()=>toggleLock(t.id)}/>{t.label}</label>)}</div>
