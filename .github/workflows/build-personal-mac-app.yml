@@ -22,7 +22,7 @@ jobs:
           npm run typecheck
           npm run build:renderer
           npx electron-builder --mac dir --arm64 --publish never
-          APP='dist/mac-arm64/Stolperbeats MIDI Converter.app'
+          APP='dist/mac-arm64/Stopler.app'
           bash scripts/verify-mac-package.sh "$APP"
           test -x "$APP/Contents/MacOS/Stolperbeats MIDI Converter"
           ditto -c -k --keepParent "$APP" Stopler-Personal-Mac-App.zip
