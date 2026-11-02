@@ -1,7 +1,7 @@
 #!/bin/bash
 # Local CI packaging diagnostic. Ad-hoc signing is NOT Developer ID signing or notarization.
 set -euo pipefail
-APP="${1:-dist/mac-arm64/Stolperbeats MIDI Converter.app}"
+APP="${1:-dist/mac-arm64/Stopler.app}"
 if [[ ! -d "$APP" ]]; then
   echo "Missing application bundle: $APP" >&2
   exit 1
