@@ -364,7 +364,7 @@ export default function Sequencer() {
   </div>;
   return <div className={styles.app}>
     <header className={styles.topBar}>
-      <div className={styles.brand}><strong>Stoplerbeats</strong><span>Midi Generator and Converter</span></div>
+      <div className={styles.brand}><strong>Stolpercheats</strong><span>MIDI Generator Converter</span></div>
       <nav className={styles.navigation} aria-label="Application sections">
         {(['sequencer','converter','library'] as const).map(name=><button key={name} className={view===name?styles.activeTab:''} onClick={()=>setView(name)}>{name==='sequencer'?'SEQUENCER':name==='converter'?'MIDI CONVERTER':'LIBRARY'}</button>)}
       </nav>
