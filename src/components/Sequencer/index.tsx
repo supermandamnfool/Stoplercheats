@@ -58,6 +58,8 @@ export default function Sequencer() {
   const [playhead, setPlayhead] = useState(-1);
   const [library, setLibrary] = useState<{name:string;folder:string;bank:Steps}[]>([]);
   const [libraryName, setLibraryName] = useState('');
+  const [patternClipboard, setPatternClipboard] = useState<Record<Track,number[]> | null>(null);
+  const [trackClipboard, setTrackClipboard] = useState<number[] | null>(null);
   const [folder, setFolder] = useState('Default');
   const [midiNotes, setMidiNotes] = useState<Record<Track,number>>(DEFAULT_EXPORT_NOTES);
   const audioRef = useRef<DrumPreview | null>(null);
@@ -199,6 +201,11 @@ export default function Sequencer() {
     for(let i=0;i<24;i++)zip.file(`Stopler-Pattern-${String(i+1).padStart(2,'0')}.mid`,exportPatternMidi(steps,i,midiNotes));
     FileSaver.saveAs(await zip.generateAsync({type:'blob'}),'Stopler-MIDI-Bank.zip');
   };
+  const pastePattern=()=>{
+    if(!patternClipboard)return;
+    edit(previous=>Object.fromEntries(TRACKS.map(t=>[t,previous[t].map((row,i)=>i===slot&&!locked.includes(t)?patternClipboard[t].slice():row)])) as Steps);
+    setStatus('PASTED PATTERN — UNDO AVAILABLE');
+  };
   const copyPattern = () => {
     edit(previous => ({
       ...previous,
@@ -227,6 +234,8 @@ export default function Sequencer() {
       <div className={styles.trackHeader}>
         <strong>{t.label}</strong><span>{t.length} STEPS</span>
         <div className={styles.trackTools}>
+          <button onClick={()=>{setTrackClipboard(steps[t.id][slot].slice());setStatus('TRACK COPIED');}}>COPY</button>
+          <button disabled={!trackClipboard||trackClipboard.length!==t.length||locked.includes(t.id)} onClick={()=>{if(trackClipboard)replaceTrack(t.id,trackClipboard.slice());}}>PASTE</button>
           <button aria-pressed={locked.includes(t.id)} onClick={()=>toggleTrack(t.id,locked,setLocked)}>{locked.includes(t.id)?'UNLOCK':'LOCK'}</button>
           <button aria-pressed={muted.includes(t.id)} onClick={()=>toggleTrack(t.id,muted,setMuted)}>MUTE</button>
           <button aria-pressed={solo.includes(t.id)} onClick={()=>toggleTrack(t.id,solo,setSolo)}>SOLO</button>
@@ -256,6 +265,8 @@ export default function Sequencer() {
     <div className={styles.toolbar}><strong>PATTERN SEQUENCER</strong><div className={styles.actions}>
       <button disabled={!history.length} onClick={undo}>UNDO</button>
       <button disabled={!future.length} onClick={redo}>REDO</button>
+      <button onClick={()=>{setPatternClipboard(Object.fromEntries(TRACKS.map(t=>[t,steps[t][slot].slice()])) as Record<Track,number[]>);setStatus('PATTERN COPIED');}}>COPY PATTERN</button>
+      <button onClick={pastePattern} disabled={!patternClipboard}>PASTE PATTERN</button>
       <button onClick={copyPattern} disabled={slot === 0}>COPY PREVIOUS</button>
       <button onClick={clearPattern}>CLEAR PATTERN</button>
     </div></div>
