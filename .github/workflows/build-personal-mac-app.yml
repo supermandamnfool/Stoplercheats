@@ -24,7 +24,7 @@ jobs:
           npx electron-builder --mac dir --arm64 --publish never
           APP='dist/mac-arm64/Stopler.app'
           bash scripts/verify-mac-package.sh "$APP"
-          test -x "$APP/Contents/MacOS/Stolperbeats MIDI Converter"
+          test -x "$APP/Contents/MacOS/Stopler"
           ditto -c -k --keepParent "$APP" Stopler-Personal-Mac-App.zip
           unzip -t Stopler-Personal-Mac-App.zip | tail -1
       - name: Upload personal app archive
