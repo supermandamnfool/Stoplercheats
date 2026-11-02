@@ -322,6 +322,25 @@ jobs:
           test -f source/package-lock.json
           test -f source/package.json
 
+      - name: Package reviewed converter source only
+        run: |
+          set -euo pipefail
+          mkdir -p release-source
+          tar -czf release-source/stopler-converter-source.tar.gz \
+            --exclude='./dist' --exclude='./out' --exclude='./.next' \
+            --exclude='./node_modules' --exclude='./audit-production.json' \
+            -C source .
+          shasum -a 256 release-source/stopler-converter-source.tar.gz
+          tar -tzf release-source/stopler-converter-source.tar.gz | grep -q './src/components/MidiUploader/index.tsx'
+          echo 'Source-only candidate ready; not an executable installer'
+
+      - name: Upload tested source candidate (no executable)
+        uses: actions/upload-artifact@v4
+        with:
+          name: stopler-reviewed-converter-source
+          path: release-source/stopler-converter-source.tar.gz
+          retention-days: 90
+
       - name: Upload screenshot for manual interface review (no application binaries)
         if: always()
         uses: actions/upload-artifact@v4
