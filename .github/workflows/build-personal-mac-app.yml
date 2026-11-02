@@ -1,0 +1,35 @@
+name: Build personal Mac app
+on:
+  push:
+    branches: [release/converter-source-review]
+    paths: [.github/workflows/build-personal-mac-app.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Build and verify standalone Apple Silicon app
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts
+          npm run typecheck
+          npm run build:renderer
+          npx electron-builder --mac dir --arm64 --publish never
+          APP='dist/mac-arm64/Stolperbeats MIDI Converter.app'
+          bash scripts/verify-mac-package.sh "$APP"
+          test -x "$APP/Contents/MacOS/Stolperbeats MIDI Converter"
+          ditto -c -k --keepParent "$APP" Stopler-Personal-Mac-App.zip
+          unzip -t Stopler-Personal-Mac-App.zip | tail -1
+      - name: Upload personal app archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: Stopler-Personal-Mac-App
+          path: Stopler-Personal-Mac-App.zip
+          retention-days: 30
