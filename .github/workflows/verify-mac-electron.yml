@@ -163,6 +163,26 @@ jobs:
           JS
           echo '=== VERIFY NO GENERATOR ROUTE ==='
           if grep -Eq 'Grids|Mode.GRIDS|Mutable Instruments' src/pages/index.tsx; then exit 1; fi
+          echo '=== REMOVE DUPLICATE DENSITY SWEEP CONTROL ==='
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('src/components/MidiUploader/index.tsx')
+          s=p.read_text()
+          start=s.find('        <label>\\n  <input type="checkbox"')
+          if start<0:
+              start=s.find('        <label>\n  <input type="checkbox"')
+          end=s.find('        <div style={{ marginTop: 12 }}>',start)
+          if start<0 or end<0 or end<=start:
+              raise SystemExit('Could not safely identify duplicate density checkbox block')
+          old=s[start:end]
+          if 'densitySweepEnabled' not in old or '<button type="submit">Generate</button>' not in old:
+              raise SystemExit('Unexpected form content, refusing replacement')
+          s=s[:start]+'        <button type="submit">Generate</button>\n'+s[end:]
+          if s.count('checked={densitySweepEnabled}')!=1:
+              raise SystemExit('Expected one remaining density sweep checkbox')
+          p.write_text(s)
+          print('Duplicate density checkbox removed')
+          PY
           echo '=== BUILD STATIC RENDERER ==='
           npm run build:renderer
           test -f out/index.html
@@ -185,26 +205,6 @@ jobs:
           }
           console.log('Static asset paths resolve relative to packaged HTML');
           JS
-          echo '=== REMOVE DUPLICATE DENSITY SWEEP CONTROL ==='
-          python3 - <<'PY'
-          from pathlib import Path
-          p=Path('src/components/MidiUploader/index.tsx')
-          s=p.read_text()
-          start=s.find('        <label>\\n  <input type="checkbox"')
-          if start<0:
-              start=s.find('        <label>\n  <input type="checkbox"')
-          end=s.find('        <div style={{ marginTop: 12 }}>',start)
-          if start<0 or end<0 or end<=start:
-              raise SystemExit('Could not safely identify duplicate density checkbox block')
-          old=s[start:end]
-          if 'densitySweepEnabled' not in old or '<button type="submit">Generate</button>' not in old:
-              raise SystemExit('Unexpected form content, refusing replacement')
-          s=s[:start]+'        <button type="submit">Generate</button>\n'+s[end:]
-          if s.count('checked={densitySweepEnabled}')!=1:
-              raise SystemExit('Expected one remaining density sweep checkbox')
-          p.write_text(s)
-          print('Duplicate density checkbox removed')
-          PY
           echo '=== MIDI UPLOADER UI SOURCE FOR END-TO-END AUTOMATION ==='
           find src/components/MidiUploader -type f -maxdepth 3 -print
           sed -n '1,260p' src/components/MidiUploader/index.tsx
