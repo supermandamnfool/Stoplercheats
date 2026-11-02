@@ -38,7 +38,7 @@ jobs:
           echo '--- Signature ---'
           codesign -dv --verbose=4 "$APP" 2>&1 || true
           echo '--- Verification ---'
-          codesign --verify --deep --strict --verbose=2 "$APP" 2>&1 || true
+          codesign --verify --deep --strict --verbose=2 "$APP" 2>&1
           echo '--- Gatekeeper assessment (local runner; not a substitute for user Mac) ---'
           spctl --assess --type execute --verbose=4 "$APP" 2>&1 || true
           echo '--- Package content ---'
