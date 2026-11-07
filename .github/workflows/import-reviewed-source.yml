@@ -1,0 +1,55 @@
+name: Import reviewed converter source into review branch
+on:
+  push:
+    branches: [release/converter-source-review]
+    paths: [.github/workflows/import-reviewed-source.yml]
+permissions:
+  contents: write
+  actions: read
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/converter-source-review
+          persist-credentials: true
+      - name: Download tested source artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/artifacts/13107231538/zip" \
+            -o /tmp/reviewed-source.zip
+          mkdir -p /tmp/reviewed-source
+          unzip -q /tmp/reviewed-source.zip -d /tmp/reviewed-source
+          tar -xzf /tmp/reviewed-source/stopler-converter-source.tar.gz -C /tmp/reviewed-source
+          test -f /tmp/reviewed-source/package.json
+          test -f /tmp/reviewed-source/src/pages/index.tsx
+      - name: Import source, preserving existing repository workflows
+        run: |
+          set -euo pipefail
+          rsync -a --exclude='.github/' --exclude='.git/' /tmp/reviewed-source/ ./
+          rm -f stopler-converter-source.tar.gz
+          git add -A
+          python3 - <<'PY'
+          import subprocess
+          from pathlib import Path
+          paths = subprocess.check_output(['git','diff','--cached','--name-only','-z']).split(b'\x00')
+          for raw in paths:
+              if not raw: continue
+              p = Path(raw.decode())
+              if p.suffix.lower() in {'.png','.ico','.mid','.zip','.gz'}: continue
+              try: data=p.read_text(encoding='utf-8')
+              except (UnicodeDecodeError, OSError): continue
+              lines=[line.rstrip() for line in data.splitlines()]
+              p.write_text('\n'.join(lines).rstrip()+'\n',encoding='utf-8')
+          PY
+          git add -A
+          git status --short
+          git diff --cached --check
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "Import tested Apple Silicon converter source" || true
+          git push origin HEAD:release/converter-source-review

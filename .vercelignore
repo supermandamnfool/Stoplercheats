@@ -1,0 +1,7 @@
+dist/
+out/
+electron/
+*.zip
+*.dmg
+*.app
+node_modules/.cache/

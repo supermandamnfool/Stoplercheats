@@ -1,0 +1,41 @@
+name: Review converter security and packaging
+on:
+  push:
+    branches: [release/converter-source-review]
+    paths: [.github/workflows/review-converter-security.yml, scripts/verify-mac-package.sh]
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Verify dependencies and source
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts
+          npm audit --omit=dev --audit-level=high
+          npm run typecheck
+          node - <<'NODE'
+          const p=require('./package.json');
+          if(p.build.productName!=='Stolperbeats MIDI Converter') throw Error('Unexpected product name');
+          if(p.build.appId!=='com.rob.stolperbeats.midiconverter') throw Error('Unexpected app ID');
+          if(p.scripts['build:renderer']!=='next build') throw Error('Unexpected build script');
+          console.log('Package metadata checks passed');
+          NODE
+          grep -nE 'contextIsolation: true|nodeIntegration: false|sandbox: true|loadFile' electron/main.js
+      - name: Build packaged app and inspect signature
+        run: |
+          set -euo pipefail
+          npm run build:renderer
+          npx electron-builder --mac dir --arm64 --publish never
+          APP='dist/mac-arm64/Stolperbeats MIDI Converter.app'
+          test -d "$APP"
+          bash scripts/verify-mac-package.sh "$APP"
+          echo '--- Package content ---'
+          find "$APP/Contents/MacOS" -maxdepth 1 -type f -print
+          echo '--- No installer uploaded ---'

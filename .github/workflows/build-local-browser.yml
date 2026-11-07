@@ -1,0 +1,60 @@
+name: Build local browser converter
+on:
+  push:
+    branches: [release/converter-source-review]
+    paths:
+      - .github/workflows/build-local-browser.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Build standalone static browser app
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts
+          npm run typecheck
+          npm run build:renderer
+          test -s out/index.html
+          mkdir -p stopler-browser
+          cp -R out/. stopler-browser/
+          cat > stopler-browser/START-HERE.txt <<'TXT'
+          STOPLER — local browser app (no installer)
+
+          1. Unzip this download.
+          2. Open Terminal and type: cd
+             then press Space, drag the stopler-browser folder into Terminal, and press Return.
+          3. Run: python3 -m http.server 8765
+          4. Open http://localhost:8765 in Safari or Chrome.
+          5. Import an Ableton MIDI file, Generate, then Save PatternBank000.txt.
+          6. Press Control-C in Terminal to stop the local server.
+
+          All processing runs locally. No Electron app or Gatekeeper bypass.
+          If port 8765 is busy, use another port in both the command and browser address.
+          TXT
+      - name: Verify local web server serves the app
+        run: |
+          set -euo pipefail
+          cd stopler-browser
+          python3 -m http.server 8765 >/tmp/stopler-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID || true' EXIT
+          for i in {1..20}; do
+            if curl -fsS http://127.0.0.1:8765/ -o /tmp/stopler-index.html; then break; fi
+            sleep 1
+          done
+          grep -qi '<html' /tmp/stopler-index.html
+          grep -q '_next/' /tmp/stopler-index.html
+      - name: Upload local browser app
+        uses: actions/upload-artifact@v4
+        with:
+          name: Stopler-Local-Browser-App
+          path: stopler-browser/
+          retention-days: 30

@@ -1,0 +1,65 @@
+{
+  "name": "stolperbeats-pattern-creator",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "dev:electron": "concurrently -k \"npm run dev\" \"npm run electron:dev\"",
+    "electron:dev": "ELECTRON_START_URL=http://localhost:3000 wait-on tcp:3000 && electron .",
+    "build:renderer": "next build",
+    "dist": "npm run build:renderer && electron-builder",
+    "pack": "npm run build:renderer && electron-builder --dir",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@types/node": "22.14.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "arraybuffer-to-buffer": "^0.0.7",
+    "eslint": "8.39.0",
+    "eslint-config-next": "^16.4.3",
+    "file-saver": "^2.0.5",
+    "jszip": "^3.10.1",
+    "midi-file": "^1.2.4",
+    "next": "^16.4.3",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "@types/file-saver": "^2.0.5",
+    "electron": "^41.7.1",
+    "electron-builder": "^26.18.0",
+    "concurrently": "^8.2.2",
+    "wait-on": "^7.2.0",
+    "eslint": "^9.39.0"
+  },
+  "main": "electron/main.js",
+  "build": {
+    "appId": "com.rob.stolperbeats.midiconverter",
+    "productName": "Stolperbeats MIDI Converter",
+    "files": [
+      "electron/**",
+      "out/**",
+      "package.json"
+    ],
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.music",
+      "icon": "electron/icon"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/stolperbeats-pattern-generator.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/stolperbeats-pattern-generator/issues"
+  },
+  "homepage": "https://github.com/your-username/stolperbeats-pattern-generator#readme",
+  "version": "0.1.0"
+}
